@@ -1746,6 +1746,11 @@ body[data-rain="off"] .atmo i{display:none}
 #sbgate input{padding:12px 14px;border-radius:12px;border:1px solid #ffffff44;background:#0b1224;color:#fff;font:600 15px var(--body)}
 #sbgate form button{justify-content:center}
 #sbgate #sb-msg{margin:12px 0 0;min-height:1.4em;font-size:14px}
+
+/* night theme while the city loads: dark lawn tone instead of the old daylight green, neon loading text */
+.map{background:#1c5254!important;background-image:none!important}
+.blank h2{color:#e9f0ff;text-shadow:0 0 18px #00e5ff88;font-family:var(--display);letter-spacing:.04em}
+.blank p{color:#9fb3d9}
 </style>
 
 <div class="app">
@@ -1886,6 +1891,13 @@ document.addEventListener('click',async e=>{
   if(b.dataset.sb==='login'){}
   if(b.dataset.sb==='out'){await ui.sbc.auth.signOut();location.reload()}
 });
+
+/* a brand-new website database: the Founder's first visit builds the six divisions and champapi, as the local preview does */
+function seedCity(){
+  if(!ui.sb||ui.sbRole!=='president'||Object.keys(st.depts).length||Object.keys(st.members).length)return;
+  ORG.forEach(([id,name,color,theme,teams],i)=>api.set('depts',id,{name,color,theme,teams,order:i}).catch(()=>{}));
+  api.set('members','r-champapi',{name:'champapi',dept:'',stars:6,title:'Founder & CEO',task:'',away:false}).catch(()=>{});
+}
 async function boot(){
   render();
   let db=window.claude?.use?await window.claude.use('db'):null;
@@ -1901,14 +1913,14 @@ async function boot(){
   }
   ui.live=true;
   /* the artifact's owner and its editors are the Founder: no code needed (everyone else still uses the Founder or Chief code) */
-  window.claude.use('user').then(async u=>{if(u&&(await u.isOwner()||await u.canEdit())){ui.level='president';ui.unlocked=true;render()}}).catch(()=>{});
+  if(!ui.sb&&window.claude?.use)window.claude.use('user').then(async u=>{if(u&&(await u.isOwner()||await u.canEdit())){ui.level='president';ui.unlocked=true;render()}}).catch(()=>{});   // claude.ai only: on the website, Supabase roles decide
   api={set:(c,id,d)=>db.collection(c).doc(id).set(d),upd:(c,id,d)=>db.collection(c).doc(id).update(d),del:(c,id)=>db.collection(c).doc(id).delete()};
   const t=setTimeout(()=>{ui.slow=true;render()},10000);
   const fail=e=>{clearTimeout(t);ui.err=e.code;ui.loaded=true;render()};
   let got=0;
   ['depts','members','projects'].forEach(c=>db.collection(c).onSnapshot(s=>{
     st[c]={};s.docs.forEach(d=>st[c][d.id]=d.data());
-    if(!s.metadata.fromCache&&!ui.loaded&&++got===3){ui.loaded=true;ui.slow=false;clearTimeout(t)}
+    if(!s.metadata.fromCache&&!ui.loaded&&++got===3){ui.loaded=true;ui.slow=false;clearTimeout(t);seedCity()}
     render();
   },fail));
   db.collection('activity').onSnapshot(s=>{st.activity={};s.docs.forEach(d=>st.activity[d.id]=d.data());render()},()=>{});
