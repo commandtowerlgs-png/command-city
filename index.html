@@ -1748,9 +1748,9 @@ body[data-rain="off"] .atmo i{display:none}
 #sbgate #sb-msg{margin:12px 0 0;min-height:1.4em;font-size:14px}
 
 /* night theme while the city loads: dark lawn tone instead of the old daylight green, neon loading text */
-.map{background:#1c5254!important;background-image:none!important}
-.blank h2{color:#e9f0ff;text-shadow:0 0 18px #00e5ff88;font-family:var(--display);letter-spacing:.04em}
-.blank p{color:#9fb3d9}
+#map{background-color:#1c5254!important;background-image:radial-gradient(ellipse at 50% 40%,#23645f 0%,#1c5254 55%,#123a3f 100%)!important}
+#mapmsg .blank h2{color:#e9f0ff;text-shadow:0 0 18px #00e5ff88,0 2px 0 #05040c;font-family:var(--display);letter-spacing:.04em}
+#mapmsg .blank p{color:#bfe9ef;text-shadow:0 1px 0 #05040c}
 </style>
 
 <div class="app">
@@ -3155,7 +3155,7 @@ function render(){
     :Object.values(st.members).some(m=>m.sample)&&ui.unlocked?`<div class="note">The people and ventures here are sample data. Remove them in Settings → Clear sample data, then add your real agents.</div>`:'';
 
   const ds=depts();
-  mapmsg.innerHTML=!ui.loaded?`<div class="blank"><h2>Opening the office…</h2><p>Loading departments and agents.</p></div>`
+  mapmsg.innerHTML=!ui.loaded?`<div class="blank"><h2>Granting the Keys to the City…</h2><p>Loading departments and agents.</p></div>`
     :!ds.length?`<div class="blank"><h2>No departments yet</h2><p>${ui.unlocked?'Add your first department, or use Settings → Add COMMAND CITY departments.':'Sign in (top right) to add departments.'}</p></div>`:'';
   if(mapmsg.innerHTML){iso={W:0,H:0};floors.innerHTML='';fit()}
   else{
