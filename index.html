@@ -1751,6 +1751,33 @@ body[data-rain="off"] .atmo i{display:none}
 #map{background-color:#1c5254!important;background-image:radial-gradient(ellipse at 50% 40%,#23645f 0%,#1c5254 55%,#123a3f 100%)!important}
 #mapmsg .blank h2{color:#e9f0ff;text-shadow:0 0 18px #00e5ff88,0 2px 0 #05040c;font-family:var(--display);letter-spacing:.04em}
 #mapmsg .blank p{color:#bfe9ef;text-shadow:0 1px 0 #05040c}
+
+/* LIVE PSE TICKER (website only): bottom-right of the map; the bottom drawer makes room for it */
+.pse{position:absolute;right:16px;bottom:16px;z-index:16;width:330px;display:none;border-radius:14px;overflow:hidden;
+  background:linear-gradient(180deg,#0d1226f2,#070a18f2);border:1px solid #00e5ff55;box-shadow:0 0 18px #00e5ff22,0 10px 30px #000a;font-family:var(--body);color:#e9f0ff}
+body[data-tab="map"] .pse.on{display:block}
+body[data-tab="map"][data-pse="on"] .brow{right:362px}
+.pse-h{display:flex;align-items:center;gap:8px;padding:9px 12px 7px;border-bottom:1px solid #ffffff14}
+.pse-tag{font:800 11px var(--display);letter-spacing:.08em;padding:2px 6px;border-radius:6px;background:#00e5ff22;color:#7df3ff}
+.pse-st{display:inline-flex;align-items:center;gap:5px;font:800 10px var(--body);letter-spacing:.06em;color:#9fb3d9}
+.pse-st i{width:7px;height:7px;border-radius:50%;background:#6b7393}
+.pse-st.live{color:#39ff88}.pse-st.live i{background:#39ff88;box-shadow:0 0 8px #39ff88;animation:psepulse 1.6s ease-in-out infinite}
+@keyframes psepulse{50%{opacity:.35}}
+.pse-ix{margin-left:auto;text-align:right;line-height:1.1;text-decoration:none;color:inherit}
+.pse-ix b{display:block;font:800 15px var(--display);letter-spacing:.02em}
+.pse-ix small{font:800 11px var(--body)}
+.pse-tape{position:relative;overflow:hidden;white-space:nowrap;padding:8px 0;mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent)}
+.pse-track{display:inline-flex;gap:18px;padding-left:12px;animation:psetape var(--dur,40s) linear infinite}
+.pse-tape:hover .pse-track{animation-play-state:paused}
+@keyframes psetape{to{transform:translateX(-50%)}}
+.pse-q{display:inline-flex;align-items:baseline;gap:6px;text-decoration:none;color:#e9f0ff;font:700 13px var(--body)}
+.pse-q b{font:800 13px var(--display);letter-spacing:.03em;color:#fff}
+.pse-q:hover b,.pse-q:focus-visible b{color:#7df3ff;text-decoration:underline}
+.up{color:#39ff88}.dn{color:#ff4d6d}.flat{color:#9fb3d9}
+.pse-f{display:flex;justify-content:space-between;gap:8px;padding:5px 12px 8px;font:600 10.5px var(--body);color:#7f8db3;border-top:1px solid #ffffff10}
+.pse-f a{color:#7df3ff;text-decoration:none}.pse-f a:hover{text-decoration:underline}
+@media (prefers-reduced-motion:reduce){.pse-track{animation:none;flex-wrap:wrap;white-space:normal}.pse-st.live i{animation:none}}
+@media (max-width:1000px){.pse{position:static;order:4;width:auto}body[data-pse="on"] .brow{right:auto}}
 </style>
 
 <div class="app">
@@ -1761,6 +1788,8 @@ body[data-rain="off"] .atmo i{display:none}
     <button class="badge" data-act="cheer" aria-label="Cheer the team" style="border:0"><img class="brand-logo" src="data:image/png;base64,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" alt="COMMAND CITY logo" draggable="false"></button>
     <div><h1>COMMAND CITY<span id="modechip"></span></h1></div>
   </header>
+
+  <aside class="pse" id="pse" aria-label="Philippine stock market, live prices"></aside>
 
   <div class="lgbar glass" id="lgbar" role="group" aria-label="Status legend and filter"></div>
 
@@ -1898,6 +1927,38 @@ function seedCity(){
   ORG.forEach(([id,name,color,theme,teams],i)=>api.set('depts',id,{name,color,theme,teams,order:i}).catch(()=>{}));
   api.set('members','r-champapi',{name:'champapi',dept:'',stars:6,title:'Founder & CEO',task:'',away:false}).catch(()=>{});
 }
+
+/* LIVE PSE TICKER: polls the pse-quotes Edge Function every 60 s while the tab is visible; hidden where it can't reach it (claude.ai, a file on disk) */
+(function(){
+  const cfg=window.AH_SUPABASE,el=document.getElementById('pse');
+  if(!cfg||!el||!/^https?:$/.test(location.protocol))return;
+  const url=cfg.url+'/functions/v1/pse-quotes',H={apikey:cfg.key,Authorization:'Bearer '+cfg.key};
+  const IG=s=>'https://www.investagrams.com/Stock/PSE:'+encodeURIComponent(s);
+  const peso=n=>'₱'+Number(n).toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const pct=n=>n==null?'':(n>0?'▲':n<0?'▼':'■')+Math.abs(n).toFixed(2)+'%';
+  const cls=n=>n>0?'up':n<0?'dn':'flat';
+  const open=()=>{const p=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Manila',weekday:'short',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date()).map(x=>[x.type,x.value]));
+    const m=+p.hour*60+ +p.minute;return !['Sat','Sun'].includes(p.weekday)&&m>=570&&m<=900};   // PSE trading day, 9:30 to 15:00 Manila time
+  let data=null,busy=false;
+  function draw(){
+    if(!data||!data.quotes||!data.quotes.length){el.classList.remove('on');document.body.dataset.pse='off';return}
+    const live=open(),ix=data.index,q=data.quotes;
+    const item=s=>`<a class="pse-q" href="${IG(s.symbol)}" target="_blank" rel="noopener" title="${esc(s.name||s.symbol)} on Investagrams"><b>${esc(s.symbol)}</b><span>${peso(s.price)}</span><span class="${cls(s.change)}">${pct(s.change)}</span></a>`;
+    const items=q.map(item).join('');
+    const asOf=data.asOf?new Date(data.asOf).toLocaleDateString('en-PH',{month:'short',day:'numeric'}):'';
+    el.innerHTML=`<div class="pse-h"><span class="pse-tag">PSE</span><span class="pse-st ${live?'live':''}"><i></i>${live?'LIVE':'CLOSED'}</span>
+      ${ix?`<a class="pse-ix" href="${IG('PSEI')}" target="_blank" rel="noopener" title="PSE Composite Index on Investagrams"><b>PSEi ${Number(ix.price).toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2})}</b><small class="${cls(ix.change)}">${pct(ix.change)}</small></a>`:''}</div>
+      <div class="pse-tape"><div class="pse-track" style="--dur:${Math.max(24,q.length*3.2)}s">${items}${items}</div></div>
+      <div class="pse-f"><span>${live?'Updates every minute':'Last close'}${asOf?' · '+asOf:''}</span><a href="https://www.investagrams.com/" target="_blank" rel="noopener">Open Investagrams ↗</a></div>`;
+    el.classList.add('on');document.body.dataset.pse='on';
+  }
+  async function poll(){
+    if(busy||document.hidden)return;busy=true;
+    try{const r=await fetch(url,{headers:H});if(r.ok){const d=await r.json();if(d&&(d.quotes||[]).length)data=d}}catch{}
+    busy=false;draw();
+  }
+  poll();setInterval(poll,60000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)poll()});
+})();
 async function boot(){
   render();
   let db=window.claude?.use?await window.claude.use('db'):null;
