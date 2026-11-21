@@ -1778,6 +1778,26 @@ body[data-tab="map"][data-pse="on"] .brow{right:362px}
 .pse-f a{color:#7df3ff;text-decoration:none}.pse-f a:hover{text-decoration:underline}
 @media (prefers-reduced-motion:reduce){.pse-track{animation:none;flex-wrap:wrap;white-space:normal}.pse-st.live i{animation:none}}
 @media (max-width:1000px){.pse{position:static;order:4;width:auto}body[data-pse="on"] .brow{right:auto}}
+
+/* watchlist editor in the PSE ticker */
+.pse-ed{margin-left:6px;padding:3px 8px;border-radius:8px;border:1px solid #fcee0a66;background:#fcee0a14;color:#fcee0a;font:800 11px var(--body);cursor:pointer}
+.pse-ed:hover,.pse-ed[aria-pressed="true"]{background:#fcee0a2e}
+.pse-edit{padding:9px 12px 6px;display:grid;gap:8px}
+.pse-chips{display:flex;flex-wrap:wrap;gap:5px;max-height:96px;overflow:auto}
+.pse-chip{display:inline-flex;align-items:center;gap:3px;padding:2px 3px 2px 8px;border-radius:999px;background:#00e5ff1a;border:1px solid #00e5ff44;font:800 11.5px var(--display);letter-spacing:.03em}
+.pse-chip button{border:0;background:none;color:#ff8aa0;font:800 14px var(--body);line-height:1;padding:0 4px;cursor:pointer;border-radius:50%}
+.pse-chip button:hover{background:#ff4d6d33;color:#fff}
+.pse-add{display:flex;gap:6px}
+.pse-add input{flex:1;min-width:0;padding:7px 9px;border-radius:9px;border:1px solid #ffffff2e;background:#05081a;color:#fff;font:700 13px var(--body);text-transform:uppercase}
+.pse-add input::placeholder{text-transform:none;color:#7f8db3}
+.pse-add button{padding:7px 12px;border-radius:9px;border:0;background:linear-gradient(180deg,#ff5fe0,#c414a8);color:#fff;font:800 12px var(--body);cursor:pointer}
+.pse-add button:disabled,.pse-add input:disabled{opacity:.5;cursor:not-allowed}
+.pse-row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.pse-msg{font:700 11px var(--body);color:#9fb3d9}
+.pse-reset{border:0;background:none;color:#7df3ff;font:700 11px var(--body);cursor:pointer;padding:2px 0}
+.pse-reset:hover{text-decoration:underline}
+.pse-none{font:600 12px var(--body);color:#9fb3d9}
+.pse-pad{margin:0;padding:10px 12px}
 </style>
 
 <div class="app">
@@ -1928,36 +1948,82 @@ function seedCity(){
   api.set('members','r-champapi',{name:'champapi',dept:'',stars:6,title:'Founder & CEO',task:'',away:false}).catch(()=>{});
 }
 
-/* LIVE PSE TICKER: polls the pse-quotes Edge Function every 60 s while the tab is visible; hidden where it can't reach it (claude.ai, a file on disk) */
+/* LIVE PSE TICKER with a personal watchlist: polls the pse-quotes Edge Function every 60 s while the tab is visible.
+   The watchlist is saved to the signed-in account (docs: watchlists/<email>) so it follows you to every device; a copy stays
+   on this device. Hidden where the relay can't be reached (claude.ai, a file opened from disk). */
 (function(){
   const cfg=window.AH_SUPABASE,el=document.getElementById('pse');
   if(!cfg||!el||!/^https?:$/.test(location.protocol))return;
-  const url=cfg.url+'/functions/v1/pse-quotes',H={apikey:cfg.key,Authorization:'Bearer '+cfg.key};
+  const base=cfg.url+'/functions/v1/pse-quotes',H={apikey:cfg.key,Authorization:'Bearer '+cfg.key},MAX=30,LS='cc-pse-watch';
   const IG=s=>'https://www.investagrams.com/Stock/PSE:'+encodeURIComponent(s);
   const peso=n=>'₱'+Number(n).toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2});
   const pct=n=>n==null?'':(n>0?'▲':n<0?'▼':'■')+Math.abs(n).toFixed(2)+'%';
   const cls=n=>n>0?'up':n<0?'dn':'flat';
   const open=()=>{const p=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Manila',weekday:'short',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date()).map(x=>[x.type,x.value]));
     const m=+p.hour*60+ +p.minute;return !['Sat','Sun'].includes(p.weekday)&&m>=570&&m<=900};   // PSE trading day, 9:30 to 15:00 Manila time
-  let data=null,busy=false;
+  let watch=null,data=null,busy=false,editing=false,all=null,msg='',acct=false;
+  try{const w=JSON.parse(localStorage.getItem(LS)||'null');if(Array.isArray(w))watch=w}catch{}
+  /* account copy: read once signed in, write on every change */
+  async function loadAcct(){
+    if(acct||!ui.sb||!ui.sbc||!ui.sbEmail)return;acct=true;
+    try{const {data:r}=await ui.sbc.from('docs').select('data').eq('collection','watchlists').eq('id',ui.sbEmail).maybeSingle();
+      if(r&&Array.isArray(r.data?.symbols)){watch=r.data.symbols;try{localStorage.setItem(LS,JSON.stringify(watch))}catch{};poll(true)}}catch{}
+  }
+  async function save(){
+    try{localStorage.setItem(LS,JSON.stringify(watch))}catch{}
+    if(ui.sb&&ui.sbc&&ui.sbEmail){const {error}=await ui.sbc.from('docs').upsert({collection:'watchlists',id:ui.sbEmail,data:{symbols:watch},updated_at:new Date().toISOString()});msg=error?'Saved on this device only.':'Watchlist saved.'}
+    else msg='Saved on this device.';
+    draw();setTimeout(()=>{msg='';if(editing)draw()},2500);
+  }
+  async function loadAll(){if(all)return;try{const r=await fetch(base+'?list=1',{headers:H});if(r.ok)all=(await r.json()).symbols||[]}catch{}draw()}
+  const current=()=>watch?watch:(data?.quotes||[]).map(q=>q.symbol);
+  function head(live,ix){
+    return `<div class="pse-h"><span class="pse-tag">PSE</span><span class="pse-st ${live?'live':''}"><i></i>${live?'LIVE':'CLOSED'}</span>
+      <button type="button" class="pse-ed" data-pse="edit" aria-pressed="${editing}" title="${editing?'Done editing':'Edit your watchlist'}">${editing?'Done':'★ Watchlist'}</button>
+      ${ix?`<a class="pse-ix" href="${IG('PSEI')}" target="_blank" rel="noopener" title="PSE Composite Index on Investagrams"><b>PSEi ${Number(ix.price).toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2})}</b><small class="${cls(ix.change)}">${pct(ix.change)}</small></a>`:''}</div>`;
+  }
+  function editorHTML(){
+    const syms=current(),names=Object.fromEntries((all||[]).map(s=>[s.symbol,s.name]));
+    return `<div class="pse-edit">
+      <div class="pse-chips">${syms.map(s=>`<span class="pse-chip" title="${esc(names[s]||s)}">${esc(s)}<button type="button" data-pse="rm" data-s="${esc(s)}" aria-label="Remove ${esc(s)}">×</button></span>`).join('')||'<span class="pse-none">No stocks yet. Add one below.</span>'}</div>
+      <form class="pse-add" data-pse-form="add"><input id="pse-in" list="pse-all" autocomplete="off" spellcheck="false" placeholder="${all?'Add a PSE symbol, e.g. CNPF':'Loading PSE list…'}" aria-label="PSE stock symbol" maxlength="40"${syms.length>=MAX?' disabled':''}>
+        <button type="submit"${syms.length>=MAX?' disabled':''}>Add</button></form>
+      <datalist id="pse-all">${(all||[]).map(s=>`<option value="${esc(s.symbol)}">${esc(s.name)}</option>`).join('')}</datalist>
+      <div class="pse-row"><span class="pse-msg" role="status">${esc(msg)||`${syms.length}/${MAX} stocks`}</span><button type="button" class="pse-reset" data-pse="reset">Blue chips</button></div>
+    </div>`;
+  }
   function draw(){
-    if(!data||!data.quotes||!data.quotes.length){el.classList.remove('on');document.body.dataset.pse='off';return}
-    const live=open(),ix=data.index,q=data.quotes;
+    if(!data||(!data.quotes&&!data.index)){el.classList.remove('on');document.body.dataset.pse='off';return}
+    if(editing&&document.activeElement&&document.activeElement.id==='pse-in'&&el.contains(document.activeElement)){const f=el.querySelector('.pse-msg');if(f)f.textContent=msg||`${current().length}/${MAX} stocks`;return}   // never wipe what is being typed
+    const live=open(),q=data.quotes||[];
     const item=s=>`<a class="pse-q" href="${IG(s.symbol)}" target="_blank" rel="noopener" title="${esc(s.name||s.symbol)} on Investagrams"><b>${esc(s.symbol)}</b><span>${peso(s.price)}</span><span class="${cls(s.change)}">${pct(s.change)}</span></a>`;
     const items=q.map(item).join('');
     const asOf=data.asOf?new Date(data.asOf).toLocaleDateString('en-PH',{month:'short',day:'numeric'}):'';
-    el.innerHTML=`<div class="pse-h"><span class="pse-tag">PSE</span><span class="pse-st ${live?'live':''}"><i></i>${live?'LIVE':'CLOSED'}</span>
-      ${ix?`<a class="pse-ix" href="${IG('PSEI')}" target="_blank" rel="noopener" title="PSE Composite Index on Investagrams"><b>PSEi ${Number(ix.price).toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2})}</b><small class="${cls(ix.change)}">${pct(ix.change)}</small></a>`:''}</div>
-      <div class="pse-tape"><div class="pse-track" style="--dur:${Math.max(24,q.length*3.2)}s">${items}${items}</div></div>
-      <div class="pse-f"><span>${live?'Updates every minute':'Last close'}${asOf?' · '+asOf:''}</span><a href="https://www.investagrams.com/" target="_blank" rel="noopener">Open Investagrams ↗</a></div>`;
+    el.innerHTML=head(live,data.index)+(editing?editorHTML():q.length?`<div class="pse-tape"><div class="pse-track" style="--dur:${Math.max(24,q.length*3.2)}s">${items}${items}</div></div>`:`<p class="pse-none pse-pad">Your watchlist is empty. Tap ★ Watchlist to add stocks.</p>`)
+      +`<div class="pse-f"><span>${live?'Updates every minute':'Last close'}${asOf?' · '+asOf:''}</span><a href="https://www.investagrams.com/" target="_blank" rel="noopener">Open Investagrams ↗</a></div>`;
     el.classList.add('on');document.body.dataset.pse='on';
   }
-  async function poll(){
-    if(busy||document.hidden)return;busy=true;
-    try{const r=await fetch(url,{headers:H});if(r.ok){const d=await r.json();if(d&&(d.quotes||[]).length)data=d}}catch{}
+  async function poll(force){
+    if(!force&&(busy||document.hidden))return;busy=true;
+    const q=watch?'?symbols='+encodeURIComponent(watch.length?watch.join(','):'NONE'):'';
+    try{const r=await fetch(base+q,{headers:H});if(r.ok){const d=await r.json();if(d&&(d.quotes||d.index)){if(watch&&!watch.length)d.quotes=[];data=d}}}catch{}
     busy=false;draw();
   }
+  el.addEventListener('click',e=>{const b=e.target.closest('[data-pse]');if(!b)return;const a=b.dataset.pse;
+    if(a==='edit'){editing=!editing;msg='';if(editing){loadAll();if(!watch)watch=current()}draw();if(editing)setTimeout(()=>el.querySelector('#pse-in')?.focus(),0);else poll(true);return}
+    if(a==='rm'){watch=current().filter(s=>s!==b.dataset.s);save();poll(true);return}
+    if(a==='reset'){watch=null;try{localStorage.removeItem(LS)}catch{};if(ui.sb&&ui.sbc&&ui.sbEmail)ui.sbc.from('docs').delete().eq('collection','watchlists').eq('id',ui.sbEmail).then(()=>{});msg='Back to the blue chips.';poll(true).then(()=>{if(editing)watch=current()});return}
+  });
+  el.addEventListener('submit',e=>{if(!e.target.closest('[data-pse-form="add"]'))return;e.preventDefault();
+    const inp=el.querySelector('#pse-in'),s=(inp.value||'').trim().toUpperCase().split(/\s/)[0],syms=current();
+    if(!s)return;
+    if(all&&!all.some(x=>x.symbol===s)){msg=`${s} isn't a PSE stock.`;inp.blur();draw();return}
+    if(syms.includes(s)){msg=`${s} is already on your list.`;inp.value='';inp.blur();draw();return}
+    if(syms.length>=MAX){msg=`Up to ${MAX} stocks.`;inp.blur();draw();return}
+    watch=[...syms,s];inp.value='';inp.blur();save();poll(true).then(()=>setTimeout(()=>el.querySelector('#pse-in')?.focus(),30));
+  });
   poll();setInterval(poll,60000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)poll()});
+  const w=setInterval(()=>{if(ui.sb){loadAcct();clearInterval(w)}},1500);setTimeout(()=>clearInterval(w),120000);
 })();
 async function boot(){
   render();
