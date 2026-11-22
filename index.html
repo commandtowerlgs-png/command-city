@@ -1753,10 +1753,10 @@ body[data-rain="off"] .atmo i{display:none}
 #mapmsg .blank p{color:#bfe9ef;text-shadow:0 1px 0 #05040c}
 
 /* LIVE PSE TICKER (website only): bottom-right of the map; the bottom drawer makes room for it */
-.pse{position:absolute;right:16px;bottom:16px;z-index:16;width:330px;display:none;border-radius:14px;overflow:hidden;
+.pse{display:none;border-radius:14px;overflow:hidden;
   background:linear-gradient(180deg,#0d1226f2,#070a18f2);border:1px solid #00e5ff55;box-shadow:0 0 18px #00e5ff22,0 10px 30px #000a;font-family:var(--body);color:#e9f0ff}
 body[data-tab="map"] .pse.on{display:block}
-body[data-tab="map"][data-pse="on"] .brow{right:362px}
+body[data-tab="map"][data-pse="on"] .brow,body[data-tab="map"][data-cards="on"] .brow{right:362px}
 .pse-h{display:flex;align-items:center;gap:8px;padding:9px 12px 7px;border-bottom:1px solid #ffffff14}
 .pse-tag{font:800 11px var(--display);letter-spacing:.08em;padding:2px 6px;border-radius:6px;background:#00e5ff22;color:#7df3ff}
 .pse-st{display:inline-flex;align-items:center;gap:5px;font:800 10px var(--body);letter-spacing:.06em;color:#9fb3d9}
@@ -1806,6 +1806,28 @@ body[data-tab="map"][data-pse="on"] .brow{right:362px}
 .mapctl [data-act="fullscreen"] .fs-out,.mapctl [data-act="fullscreen"][aria-pressed="true"] .fs-in{display:none}
 .mapctl [data-act="fullscreen"][aria-pressed="true"] .fs-out{display:inline}
 .mapctl [data-act="fullscreen"][aria-pressed="true"]{border-color:#00e5ff;color:#7df3ff}
+
+/* bottom-right market column: Riftbound cards above the PSE ticker */
+.mktcol{position:absolute;right:16px;bottom:16px;z-index:16;width:330px;display:flex;flex-direction:column;gap:10px;pointer-events:none}
+.mktcol>*{pointer-events:auto}
+.mktcol .pse{position:static;width:auto}
+body:not([data-tab="map"]) .mktcol{display:none}
+.cards{display:none;border-radius:14px;overflow:hidden;background:linear-gradient(180deg,#120d26f2,#08061af2);border:1px solid #ff2bd655;box-shadow:0 0 18px #ff2bd622,0 10px 30px #000a;font-family:var(--body);color:#e9f0ff}
+.cards.on{display:block}
+.cards .pse-tag{background:#ff2bd622;color:#ff8ae8}
+.cd-list{list-style:none;margin:0;padding:4px 0;max-height:176px;overflow:auto}
+.cd-row{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:6px 12px;border-bottom:1px solid #ffffff0d}
+.cd-row:last-child{border-bottom:0}
+.cd-nm{min-width:0;font:800 12.5px var(--body);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#fff;text-decoration:none}
+.cd-nm:hover{text-decoration:underline;color:#ff8ae8}
+.cd-px{text-align:right;font:800 13px var(--display);letter-spacing:.02em}
+.cd-sub{grid-column:1;font:600 10.5px var(--body);color:#8f9cc2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cd-ln{grid-column:2;display:flex;gap:6px;justify-content:flex-end}
+.cd-ln a{font:800 10px var(--body);text-decoration:none;padding:1px 6px;border-radius:6px;border:1px solid #ffffff2a;color:#cfe0ff}
+.cd-ln a.eb{border-color:#fcee0a66;color:#fcee0a}
+.cd-ln a:hover{background:#ffffff14}
+.cd-low{font:600 10.5px var(--body);color:#8f9cc2}
+@media (max-width:1000px){.mktcol{position:static;order:4;width:auto;pointer-events:auto}}
 </style>
 
 <div class="app">
@@ -1817,7 +1839,7 @@ body[data-tab="map"][data-pse="on"] .brow{right:362px}
     <div><h1>COMMAND CITY<span id="modechip"></span></h1></div>
   </header>
 
-  <aside class="pse" id="pse" aria-label="Philippine stock market, live prices"></aside>
+  <div class="mktcol" id="mktcol"><aside class="cards" id="cards" aria-label="Riftbound card prices"></aside><aside class="pse" id="pse" aria-label="Philippine stock market, live prices"></aside></div>
 
   <div class="lgbar glass" id="lgbar" role="group" aria-label="Status legend and filter"></div>
 
@@ -1983,7 +2005,9 @@ function seedCity(){
     else msg='Saved on this device.';
     draw();setTimeout(()=>{msg='';if(editing)draw()},2500);
   }
-  async function loadAll(){if(all)return;try{const r=await fetch(base+'?list=1',{headers:H});if(r.ok)all=(await r.json()).symbols||[]}catch{}draw()}
+  async function loadAll(){if(all)return;try{const r=await fetch(base+'?list=1',{headers:H});if(r.ok)all=(await r.json()).symbols||[]}catch{}
+    const dl=el.querySelector('#pse-all'),inp=el.querySelector('#pse-in');
+    if(dl&&all){dl.innerHTML=all.map(s=>`<option value="${esc(s.symbol)}">${esc(s.name)}</option>`).join('');if(inp)inp.placeholder='Add a PSE symbol, e.g. CNPF'}else draw()}
   const current=()=>watch?watch:(data?.quotes||[]).map(q=>q.symbol);
   function head(live,ix){
     return `<div class="pse-h"><span class="pse-tag">PSE</span><span class="pse-st ${live?'live':''}"><i></i>${live?'LIVE':'CLOSED'}</span>
@@ -2039,6 +2063,84 @@ function seedCity(){
   const sync=()=>{const on=!!(d.fullscreenElement||d.webkitFullscreenElement),x=b();if(!x)return;x.setAttribute('aria-pressed',String(on));x.setAttribute('aria-label',on?'Exit full screen':'Full screen');x.title=on?'Exit full screen (Esc)':'Full screen (hides the browser tabs and address bar)';fit()};
   d.addEventListener('fullscreenchange',sync);d.addEventListener('webkitfullscreenchange',sync);
   if(!(d.fullscreenEnabled||d.webkitFullscreenEnabled)){const x=b();if(x)x.hidden=true}})();
+
+/* RIFTBOUND CARD WATCHLIST: daily TCGplayer market prices from the card-prices Edge Function (TCGCSV), with one-click eBay sold
+   listings and PriceCharting for every card. Saved to the signed-in account (docs: cardwatch/<email>) and on this device. */
+(function(){
+  const cfg=window.AH_SUPABASE,el=document.getElementById('cards');
+  if(!cfg||!el||!/^https?:$/.test(location.protocol))return;
+  const base=cfg.url+'/functions/v1/card-prices',H={apikey:cfg.key,Authorization:'Bearer '+cfg.key},MAX=30,LS='cc-card-watch';
+  const usd=n=>n==null?'—':'$'+Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const clean=s=>String(s||'').replace(/[(),]/g,' ').replace(/\s+/g,' ').trim();
+  const ebay=c=>'https://www.ebay.com/sch/i.html?_nkw='+encodeURIComponent('Riftbound '+clean(c.name)+(c.number?' '+c.number.split('/')[0]:''))+'&LH_Sold=1&LH_Complete=1&_sop=13';
+  const pc=c=>'https://www.pricecharting.com/search-products?type=prices&q='+encodeURIComponent('riftbound '+clean(c.name).replace(/\bOvernumbered\b/i,'')+(c.number?' '+c.number.split('/')[0]:''));
+  let watch=[],data=null,editing=false,all=null,msg='',acct=false,ready=false;
+  try{const w=JSON.parse(localStorage.getItem(LS)||'null');if(Array.isArray(w))watch=w.filter(n=>Number.isInteger(n))}catch{}
+  const label=c=>`${c.name} · ${c.set}${c.number?' #'+c.number.split('/')[0]:''}`;
+  async function loadAcct(){
+    if(acct||!ui.sb||!ui.sbc||!ui.sbEmail)return;acct=true;
+    try{const {data:r}=await ui.sbc.from('docs').select('data').eq('collection','cardwatch').eq('id',ui.sbEmail).maybeSingle();
+      if(r&&Array.isArray(r.data?.ids)){watch=r.data.ids;try{localStorage.setItem(LS,JSON.stringify(watch))}catch{};poll()}}catch{}
+  }
+  async function save(){
+    try{localStorage.setItem(LS,JSON.stringify(watch))}catch{}
+    if(ui.sb&&ui.sbc&&ui.sbEmail){const {error}=await ui.sbc.from('docs').upsert({collection:'cardwatch',id:ui.sbEmail,data:{ids:watch},updated_at:new Date().toISOString()});msg=error?'Saved on this device only.':'Watchlist saved.'}
+    else msg='Saved on this device.';
+    draw();setTimeout(()=>{msg='';if(editing)draw()},2500);
+  }
+  async function loadAll(){if(all)return;try{const r=await fetch(base+'?list=1',{headers:H});if(r.ok)all=(await r.json()).cards||[]}catch{}
+    const dl=el.querySelector('#cd-all'),inp=el.querySelector('#cd-in');   // fill the suggestions in place: a redraw would wipe what is being typed
+    if(dl&&all){dl.innerHTML=all.map(c=>`<option value="${esc(label(c))}">${esc(c.rarity||'')}</option>`).join('');if(inp)inp.placeholder='Search a card, e.g. Kai’Sa'}else draw()}
+  const best=c=>{const ps=(c.prices||[]).filter(x=>x.market!=null).sort((a,b)=>b.market-a.market);return ps[0]||null};
+  function rows(){
+    const cs=data?.cards||[];
+    if(!cs.length)return `<p class="pse-none pse-pad">No cards yet. Tap ★ Cards to add the Riftbound cards you want to watch.</p>`;
+    return `<ul class="cd-list">${cs.map(c=>{const b=best(c);const other=(c.prices||[]).filter(x=>x!==b&&x.market!=null).map(x=>`${x.sub} ${usd(x.market)}`).join(' · ');
+      return `<li class="cd-row"><a class="cd-nm" href="${esc(c.url)}" target="_blank" rel="noopener" title="${esc(label(c))} on TCGplayer">${esc(c.name)}</a>
+        <span class="cd-px" title="TCGplayer market price${b?' ('+esc(b.sub)+')':''}">${usd(b?.market)}</span>
+        <span class="cd-sub">${esc(c.set)}${c.number?' #'+esc(c.number.split('/')[0]):''}${b?' · '+esc(b.sub):''}${other?' · '+esc(other):''}</span>
+        <span class="cd-ln"><a class="eb" href="${ebay(c)}" target="_blank" rel="noopener" title="eBay sold listings for this card">eBay sold</a><a href="${pc(c)}" target="_blank" rel="noopener" title="PriceCharting sold history">PC</a></span></li>`}).join('')}</ul>`;
+  }
+  function editorHTML(){
+    const byId=Object.fromEntries((data?.cards||[]).map(c=>[c.id,c]));
+    return `<div class="pse-edit">
+      <div class="pse-chips">${watch.map(id=>{const c=byId[id]||(all||[]).find(x=>x.id===id);return `<span class="pse-chip" title="${esc(c?label(c):'#'+id)}">${esc(c?c.name.replace(/\s*\(.*?\)\s*/g,' ').trim():'#'+id)}<button type="button" data-cd="rm" data-id="${id}" aria-label="Remove ${esc(c?c.name:'card')}">×</button></span>`}).join('')||'<span class="pse-none">No cards yet. Add one below.</span>'}</div>
+      <form class="pse-add" data-cd-form="add"><input id="cd-in" list="cd-all" autocomplete="off" spellcheck="false" style="text-transform:none" placeholder="${all?'Search a card, e.g. Kai’Sa':'Loading Riftbound cards…'}" aria-label="Riftbound card name"${watch.length>=MAX?' disabled':''}>
+        <button type="submit"${watch.length>=MAX?' disabled':''}>Add</button></form>
+      <datalist id="cd-all">${(all||[]).map(c=>`<option value="${esc(label(c))}">${esc(c.rarity||'')}</option>`).join('')}</datalist>
+      <div class="pse-row"><span class="pse-msg" role="status">${esc(msg)||`${watch.length}/${MAX} cards`}</span></div>
+    </div>`;
+  }
+  function draw(){
+    if(!ready){el.classList.remove('on');document.body.dataset.cards='off';return}
+    if(editing&&document.activeElement&&document.activeElement.id==='cd-in'&&el.contains(document.activeElement)){const f=el.querySelector('.pse-msg');if(f)f.textContent=msg||`${watch.length}/${MAX} cards`;return}
+    const up=data?.updated?new Date(data.updated).toLocaleDateString('en-PH',{month:'short',day:'numeric'}):'';
+    el.innerHTML=`<div class="pse-h"><span class="pse-tag">RIFTBOUND</span><span class="pse-st"><i></i>DAILY</span>
+      <button type="button" class="pse-ed" data-cd="edit" aria-pressed="${editing}" title="${editing?'Done editing':'Edit your card watchlist'}">${editing?'Done':'★ Cards'}</button></div>`
+      +(editing?editorHTML():rows())
+      +`<div class="pse-f"><span>TCGplayer market${up?' · '+up:''}</span><span>Sold prices: eBay / PC</span></div>`;
+    el.classList.add('on');document.body.dataset.cards='on';
+  }
+  async function poll(){
+    try{const r=await fetch(base+'?ids='+encodeURIComponent(watch.join(',')||'0'),{headers:H});if(r.ok){const d=await r.json();data=d;ready=true;
+      const order=new Map(watch.map((id,i)=>[id,i]));data.cards=(d.cards||[]).sort((a,b)=>order.get(a.id)-order.get(b.id))}}catch{}
+    draw();
+  }
+  el.addEventListener('click',e=>{const b=e.target.closest('[data-cd]');if(!b)return;const a=b.dataset.cd;
+    if(a==='edit'){editing=!editing;msg='';if(editing)loadAll();draw();if(editing)setTimeout(()=>el.querySelector('#cd-in')?.focus(),0);return}
+    if(a==='rm'){watch=watch.filter(id=>id!==+b.dataset.id);save();poll();return}
+  });
+  el.addEventListener('submit',e=>{if(!e.target.closest('[data-cd-form="add"]'))return;e.preventDefault();
+    const inp=el.querySelector('#cd-in'),v=(inp.value||'').trim();if(!v||!all)return;
+    let c=all.find(x=>label(x)===v);
+    if(!c){const q=v.toLowerCase(),m=all.filter(x=>label(x).toLowerCase().includes(q));if(m.length===1)c=m[0];else{msg=m.length?`${m.length} cards match. Pick one from the list.`:'No Riftbound card by that name.';inp.blur();draw();return}}
+    if(watch.includes(c.id)){msg='Already on your list.';inp.value='';inp.blur();draw();return}
+    if(watch.length>=MAX){msg=`Up to ${MAX} cards.`;inp.blur();draw();return}
+    watch=[...watch,c.id];inp.value='';inp.blur();save();poll().then(()=>setTimeout(()=>el.querySelector('#cd-in')?.focus(),30));
+  });
+  poll();setInterval(()=>{if(!document.hidden&&!editing)poll()},30*60000);   // prices change daily; refresh every half hour
+  const w=setInterval(()=>{if(ui.sb){loadAcct();clearInterval(w)}},1500);setTimeout(()=>clearInterval(w),120000);
+})();
 async function boot(){
   render();
   let db=window.claude?.use?await window.claude.use('db'):null;
