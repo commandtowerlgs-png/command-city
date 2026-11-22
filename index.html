@@ -1821,6 +1821,9 @@ body:not([data-tab="map"]) .mktcol{display:none}
 .cd-th{grid-row:span 2;width:40px;height:56px;border-radius:4px;overflow:hidden;background:#ffffff0d;display:block}
 .cd-th img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .15s}
 .cd-th:hover img{transform:scale(1.06)}
+/* no photo published yet (new printings): a neon card back instead of a broken image */
+.cd-th.noimg{position:relative;background:repeating-linear-gradient(135deg,#ff2bd618 0 6px,transparent 6px 12px),linear-gradient(160deg,#1b1240,#0a0820);border:1px solid #ff2bd655}
+.cd-th.noimg::after{content:"NO\A PHOTO";white-space:pre;position:absolute;inset:0;display:grid;place-items:center;text-align:center;font:800 8px/1.2 var(--display);letter-spacing:.08em;color:#ff8ae8}
 .cd-zoom{position:absolute;right:calc(100% + 10px);width:220px;border-radius:12px;box-shadow:0 0 0 1px #ff2bd655,0 0 24px #ff2bd633,0 18px 40px #000c;pointer-events:none;opacity:0;transition:opacity .12s;background:#08061a}
 .cd-zoom.on{opacity:1}
 @media (max-width:1000px),(hover:none){.cd-zoom{display:none}}
@@ -2104,7 +2107,7 @@ function seedCity(){
     if(!cs.length)return `<p class="pse-none pse-pad">No cards yet. Tap ★ Cards to add the Riftbound cards you want to watch.</p>`;
     return `<ul class="cd-list">${cs.map(c=>{const b=best(c);const other=(c.prices||[]).filter(x=>x!==b&&x.market!=null).map(x=>`${x.sub} ${usd(x.market)}`).join(' · ');
       const img=c.image?esc(c.image):'';
-      return `<li class="cd-row">${img?`<a class="cd-th" href="${esc(c.url)}" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="${img}" data-big="${img.replace('_200w','_400w')}" alt="" loading="lazy" decoding="async"></a>`:'<span class="cd-th"></span>'}<a class="cd-nm" href="${esc(c.url)}" target="_blank" rel="noopener" title="${esc(label(c))} on TCGplayer">${esc(c.name)}</a>
+      return `<li class="cd-row">${img?`<a class="cd-th" href="${esc(c.url)}" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="${img}" data-big="${img.replace('_200w','_400w')}" alt="" loading="lazy" decoding="async" onerror="this.parentNode.classList.add('noimg');this.parentNode.title='No photo from TCGplayer yet';this.remove()"></a>`:'<span class="cd-th noimg" title="No photo from TCGplayer yet"></span>'}<a class="cd-nm" href="${esc(c.url)}" target="_blank" rel="noopener" title="${esc(label(c))} on TCGplayer">${esc(c.name)}</a>
         <span class="cd-px" title="TCGplayer market price${b?' ('+esc(b.sub)+')':''}">${usd(b?.market)}</span>
         <span class="cd-sub">${esc(c.set)}${c.number?' #'+esc(c.number.split('/')[0]):''}${b?' · '+esc(b.sub):''}${other?' · '+esc(other):''}</span>
         <span class="cd-ln"><a class="eb" href="${ebay(c)}" target="_blank" rel="noopener" title="eBay sold listings for this card">eBay sold</a><a href="${pc(c)}" target="_blank" rel="noopener" title="PriceCharting sold history">PC</a></span></li>`}).join('')}</ul>`;
