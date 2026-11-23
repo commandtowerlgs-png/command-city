@@ -2086,7 +2086,12 @@ function seedCity(){
   const cfg=window.AH_SUPABASE,el=document.getElementById('cards');
   if(!cfg||!el||!/^https?:$/.test(location.protocol))return;
   const base=cfg.url+'/functions/v1/card-prices',H={apikey:cfg.key,Authorization:'Bearer '+cfg.key},MAX=30,LS='cc-card-watch';
-  const usd=n=>n==null?'—':'$'+Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const usd$=n=>n==null?'—':'$'+Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  /* prices shown in pesos: TCGplayer's USD × the day's USD→PHP rate (open.er-api.com, free, no key; kept 12 h on this device). No rate: dollars. */
+  let fx=null;try{const f=JSON.parse(localStorage.getItem('cc-usdphp')||'null');if(f&&Date.now()-f.t<12*3600e3)fx=f}catch{}
+  const usd=n=>n==null?'—':fx?'₱'+Math.round(n*fx.r).toLocaleString('en-PH'):usd$(n);
+  async function loadFx(){if(fx)return;try{const j=await (await fetch('https://open.er-api.com/v6/latest/USD')).json();const r=j?.rates?.PHP;
+    if(r>20&&r<200){fx={r,t:Date.now()};try{localStorage.setItem('cc-usdphp',JSON.stringify(fx))}catch{};draw()}}catch{}}
   const clean=s=>String(s||'').replace(/[(),]/g,' ').replace(/\s+/g,' ').trim();
   const ebay=c=>'https://www.ebay.com/sch/i.html?_nkw='+encodeURIComponent('Riftbound '+clean(c.name)+(c.number?' '+c.number.split('/')[0]:''))+'&LH_Sold=1&LH_Complete=1&_sop=13';
   const pc=c=>'https://www.pricecharting.com/search-products?type=prices&q='+encodeURIComponent('riftbound '+clean(c.name).replace(/\bOvernumbered\b/i,'')+(c.number?' '+c.number.split('/')[0]:''));
@@ -2113,7 +2118,7 @@ function seedCity(){
     if(!cs.length)return `<p class="pse-none pse-pad">No cards yet. Tap ★ Cards to add the Riftbound cards you want to watch.</p>`;
     return `<ul class="cd-list">${cs.map(c=>{const b=best(c);const other=(c.prices||[]).filter(x=>x!==b&&x.market!=null).map(x=>`${x.sub} ${usd(x.market)}`).join(' · ');
       return `<li class="cd-row"><a class="cd-nm" href="${esc(c.url)}" target="_blank" rel="noopener" title="${esc(label(c))} on TCGplayer">${esc(c.name)}</a>
-        <span class="cd-px" title="TCGplayer market price${b?' ('+esc(b.sub)+')':''}">${usd(b?.market)}</span>
+        <span class="cd-px" title="TCGplayer market price${b?' ('+esc(b.sub)+') '+usd$(b.market):''}">${usd(b?.market)}</span>
         <span class="cd-sub">${esc(c.set)}${c.number?' #'+esc(c.number.split('/')[0]):''}${b?' · '+esc(b.sub):''}${other?' · '+esc(other):''}</span>
         <span class="cd-ln"><a class="eb" href="${ebay(c)}" target="_blank" rel="noopener" title="eBay sold listings for this card">eBay sold</a><a href="${pc(c)}" target="_blank" rel="noopener" title="PriceCharting sold history">PC</a></span></li>`}).join('')}</ul>`;
   }
@@ -2134,7 +2139,7 @@ function seedCity(){
     el.innerHTML=`<div class="pse-h"><span class="pse-tag">RIFTBOUND</span><span class="pse-st"><i></i>DAILY</span>
       <button type="button" class="pse-ed" data-cd="edit" aria-pressed="${editing}" title="${editing?'Done editing':'Edit your card watchlist'}">${editing?'Done':'★ Cards'}</button></div>`
       +(editing?editorHTML():rows())
-      +`<div class="pse-f"><span>TCGplayer market${up?' · '+up:''}</span><span>Sold prices: eBay / PC</span></div>`;
+      +`<div class="pse-f"><span title="${fx?'US$1 = ₱'+fx.r.toFixed(2):''}">TCGplayer market${fx?' in ₱':''}${up?' · '+up:''}</span><span>Sold prices: eBay / PC</span></div>`;
     el.classList.add('on');document.body.dataset.cards='on';
   }
   async function poll(){
@@ -2154,7 +2159,7 @@ function seedCity(){
     if(watch.length>=MAX){msg=`Up to ${MAX} cards.`;inp.blur();draw();return}
     watch=[...watch,c.id];inp.value='';inp.blur();save();poll().then(()=>setTimeout(()=>el.querySelector('#cd-in')?.focus(),30));
   });
-  poll();setInterval(()=>{if(!document.hidden&&!editing)poll()},30*60000);   // prices change daily; refresh every half hour
+  loadFx();poll();setInterval(()=>{if(!document.hidden&&!editing){if(fx&&Date.now()-fx.t>12*3600e3)fx=null;loadFx();poll()}},30*60000);   // prices change daily; refresh every half hour
   const w=setInterval(()=>{if(ui.sb){loadAcct();clearInterval(w)}},1500);setTimeout(()=>clearInterval(w),120000);
 })();
 async function boot(){
