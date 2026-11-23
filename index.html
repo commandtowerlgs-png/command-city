@@ -2025,7 +2025,7 @@ function seedCity(){
   }
   let tpos=0,tlast=0;
   (function tapeLoop(now){   // 30 px/s, whole pixels only; pauses under the pointer and for reduced motion
-    const tape=el.querySelector('.pse-tape'),dt=Math.min(.1,(now-(tlast||now))/1000);tlast=now;
+    const tape=el.querySelector('.pse-tape'),dt=Math.min(1,(now-(tlast||now))/1000);tlast=now;
     if(tape&&!tape.matches(':hover')&&!matchMedia('(prefers-reduced-motion:reduce)').matches){
       const qs=tape.querySelectorAll('.pse-q'),n=qs.length/2,period=n>=1?qs[n].offsetLeft-qs[0].offsetLeft:0;
       if(period>0){tpos=(tpos+30*dt)%period;tape.scrollLeft=Math.round(tpos)}
