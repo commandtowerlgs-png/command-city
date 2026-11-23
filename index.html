@@ -1771,7 +1771,7 @@ body[data-tab="map"][data-pse="on"] .brow,body[data-tab="map"][data-cards="on"] 
 .pse-q{display:inline-flex;align-items:baseline;gap:6px;text-decoration:none;color:#e9f0ff;font:700 13px var(--body)}
 .pse-q b{font:800 13px var(--display);letter-spacing:.03em;color:#fff}
 .pse-q:hover b,.pse-q:focus-visible b{color:#7df3ff;text-decoration:underline}
-.up{color:#39ff88}.dn{color:#ff4d6d}.flat{color:#9fb3d9}
+.up{color:#39ff88}.dn{color:#ff4d6d}.nc{color:#9fb3d9}
 .pse-f{display:flex;justify-content:space-between;gap:8px;padding:5px 12px 8px;font:600 10.5px var(--body);color:#7f8db3;border-top:1px solid #ffffff10}
 .pse-f a{color:#7df3ff;text-decoration:none}.pse-f a:hover{text-decoration:underline}
 @media (prefers-reduced-motion:reduce){.pse-track{flex-wrap:wrap;white-space:normal}.pse-st.live i{animation:none}}
@@ -1987,7 +1987,7 @@ function seedCity(){
   const IG=s=>'https://www.investagrams.com/Stock/PSE:'+encodeURIComponent(s);
   const peso=n=>'₱'+Number(n).toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2});
   const pct=n=>n==null?'':(n>0?'▲':n<0?'▼':'■')+Math.abs(n).toFixed(2)+'%';
-  const cls=n=>n>0?'up':n<0?'dn':'flat';
+  const cls=n=>n>0?'up':n<0?'dn':'nc';   // not 'flat': that class positions the map layer
   const open=()=>{const p=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Manila',weekday:'short',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date()).map(x=>[x.type,x.value]));
     const m=+p.hour*60+ +p.minute;return !['Sat','Sun'].includes(p.weekday)&&m>=570&&m<=900};   // PSE trading day, 9:30 to 15:00 Manila time
   let watch=null,data=null,busy=false,editing=false,all=null,msg='',acct=false;
