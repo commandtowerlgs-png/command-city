@@ -1766,17 +1766,15 @@ body[data-tab="map"][data-pse="on"] .brow,body[data-tab="map"][data-cards="on"] 
 .pse-ix{margin-left:auto;text-align:right;line-height:1.1;text-decoration:none;color:inherit}
 .pse-ix b{display:block;font:800 15px var(--display);letter-spacing:.02em}
 .pse-ix small{font:800 11px var(--body)}
-.pse-tape{position:relative;overflow:hidden;white-space:nowrap;padding:8px 0;isolation:isolate;contain:paint;transform:translateZ(0);mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent)}
-.pse-track{display:inline-flex;gap:18px;padding-left:12px;will-change:transform;backface-visibility:hidden;animation:psetape var(--dur,40s) linear infinite}
-.pse-tape:hover .pse-track{animation-play-state:paused}
-@keyframes psetape{to{transform:translateX(-50%)}}
+.pse-tape{position:relative;overflow:hidden;white-space:nowrap;padding:8px 0;mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent)}
+.pse-track{display:inline-flex;gap:18px;padding-left:12px}   /* scrolled by whole pixels from script (see tapeLoop): a CSS transform animation left overlapping ghost text in Chrome */
 .pse-q{display:inline-flex;align-items:baseline;gap:6px;text-decoration:none;color:#e9f0ff;font:700 13px var(--body)}
 .pse-q b{font:800 13px var(--display);letter-spacing:.03em;color:#fff}
 .pse-q:hover b,.pse-q:focus-visible b{color:#7df3ff;text-decoration:underline}
 .up{color:#39ff88}.dn{color:#ff4d6d}.flat{color:#9fb3d9}
 .pse-f{display:flex;justify-content:space-between;gap:8px;padding:5px 12px 8px;font:600 10.5px var(--body);color:#7f8db3;border-top:1px solid #ffffff10}
 .pse-f a{color:#7df3ff;text-decoration:none}.pse-f a:hover{text-decoration:underline}
-@media (prefers-reduced-motion:reduce){.pse-track{animation:none;flex-wrap:wrap;white-space:normal}.pse-st.live i{animation:none}}
+@media (prefers-reduced-motion:reduce){.pse-track{flex-wrap:wrap;white-space:normal}.pse-st.live i{animation:none}}
 @media (max-width:1000px){.pse{position:static;order:4;width:auto}body[data-pse="on"] .brow{right:auto}}
 
 /* watchlist editor in the PSE ticker */
@@ -2025,6 +2023,15 @@ function seedCity(){
       <div class="pse-row"><span class="pse-msg" role="status">${esc(msg)||`${syms.length}/${MAX} stocks`}</span><button type="button" class="pse-reset" data-pse="reset">Blue chips</button></div>
     </div>`;
   }
+  let tpos=0,tlast=0;
+  (function tapeLoop(now){   // 30 px/s, whole pixels only; pauses under the pointer and for reduced motion
+    const tape=el.querySelector('.pse-tape'),dt=Math.min(.1,(now-(tlast||now))/1000);tlast=now;
+    if(tape&&!tape.matches(':hover')&&!matchMedia('(prefers-reduced-motion:reduce)').matches){
+      const qs=tape.querySelectorAll('.pse-q'),n=qs.length/2,period=n>=1?qs[n].offsetLeft-qs[0].offsetLeft:0;
+      if(period>0){tpos=(tpos+30*dt)%period;tape.scrollLeft=Math.round(tpos)}
+    }
+    requestAnimationFrame(tapeLoop);
+  })(performance.now());
   function draw(){
     if(!data||(!data.quotes&&!data.index)){el.classList.remove('on');document.body.dataset.pse='off';return}
     if(editing&&document.activeElement&&document.activeElement.id==='pse-in'&&el.contains(document.activeElement)){const f=el.querySelector('.pse-msg');if(f)f.textContent=msg||`${current().length}/${MAX} stocks`;return}   // never wipe what is being typed
@@ -2040,7 +2047,7 @@ function seedCity(){
       const f=el.querySelector('.pse-f');if(f)f.firstElementChild.textContent=`${live?'Updates every minute':'Last close'}${asOf?' · '+asOf:''}`;
       return;
     }
-    el.innerHTML=head(live,data.index)+(editing?editorHTML():q.length?`<div class="pse-tape"><div class="pse-track" data-k="${esc(key)}" style="--dur:${Math.max(24,q.length*3.2)}s">${items}${items}</div></div>`:`<p class="pse-none pse-pad">Your watchlist is empty. Tap ★ Watchlist to add stocks.</p>`)
+    el.innerHTML=head(live,data.index)+(editing?editorHTML():q.length?`<div class="pse-tape"><div class="pse-track" data-k="${esc(key)}">${items}${items}</div></div>`:`<p class="pse-none pse-pad">Your watchlist is empty. Tap ★ Watchlist to add stocks.</p>`)
       +`<div class="pse-f"><span>${live?'Updates every minute':'Last close'}${asOf?' · '+asOf:''}</span><a href="https://www.investagrams.com/" target="_blank" rel="noopener">Open Investagrams ↗</a></div>`;
     el.classList.add('on');document.body.dataset.pse='on';
   }
