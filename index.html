@@ -2032,7 +2032,15 @@ function seedCity(){
     const item=s=>`<a class="pse-q" href="${IG(s.symbol)}" target="_blank" rel="noopener" title="${esc(s.name||s.symbol)} on Investagrams"><b>${esc(s.symbol)}</b><span>${peso(s.price)}</span><span class="${cls(s.change)}">${pct(s.change)}</span></a>`;
     const items=q.map(item).join('');
     const asOf=data.asOf?new Date(data.asOf).toLocaleDateString('en-PH',{month:'short',day:'numeric'}):'';
-    el.innerHTML=head(live,data.index)+(editing?editorHTML():q.length?`<div class="pse-tape"><div class="pse-track" style="--dur:${Math.max(24,q.length*3.2)}s">${items}${items}</div></div>`:`<p class="pse-none pse-pad">Your watchlist is empty. Tap ★ Watchlist to add stocks.</p>`)
+    const key=q.map(s=>s.symbol).join(','),old=el.querySelector('.pse-track');
+    if(!editing&&old&&old.dataset.k===key){   // same stocks: update the numbers in place so the moving tape is never rebuilt (rebuilding it left ghost text behind)
+      const qs=old.querySelectorAll('.pse-q');
+      q.forEach((s,i)=>[qs[i],qs[i+q.length]].forEach(a=>{if(!a)return;const[p,c]=a.querySelectorAll('span');p.textContent=peso(s.price);c.textContent=pct(s.change);c.className=cls(s.change)}));
+      const h=el.querySelector('.pse-h');if(h)h.outerHTML=head(live,data.index);
+      const f=el.querySelector('.pse-f');if(f)f.firstElementChild.textContent=`${live?'Updates every minute':'Last close'}${asOf?' · '+asOf:''}`;
+      return;
+    }
+    el.innerHTML=head(live,data.index)+(editing?editorHTML():q.length?`<div class="pse-tape"><div class="pse-track" data-k="${esc(key)}" style="--dur:${Math.max(24,q.length*3.2)}s">${items}${items}</div></div>`:`<p class="pse-none pse-pad">Your watchlist is empty. Tap ★ Watchlist to add stocks.</p>`)
       +`<div class="pse-f"><span>${live?'Updates every minute':'Last close'}${asOf?' · '+asOf:''}</span><a href="https://www.investagrams.com/" target="_blank" rel="noopener">Open Investagrams ↗</a></div>`;
     el.classList.add('on');document.body.dataset.pse='on';
   }
