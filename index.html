@@ -775,6 +775,7 @@ body[data-tab="map"] .lgbar{display:flex}
 @media (max-width:1000px){.lgbar{position:static;order:2;max-width:none}}
 
 /* ===== headquarters image ===== */
+.hqext{position:absolute;left:0;top:0;z-index:0;pointer-events:none;overflow:visible}
 .hqbg{position:absolute;z-index:0;max-width:none;pointer-events:none;user-select:none;-webkit-user-drag:none}
 
 /* ===== calendars + inline tasks ===== */
@@ -3427,27 +3428,31 @@ function render(){
     /* an agent working on an active venture is deployed: they leave the house and show up at that venture's site, in the quest camp */
     const siteOf=m=>{if(commuter(m))return null;const s=statusOf(m.id,m);return s==='busy'?taskOf(m.id).p:s==='dep'?activeOf(m.id)[0]:null};
     const sites=ps.filter(p=>!p.done),restOf=m=>statusOf(m.id,m)==='away',restCrew=ms.filter(restOf);
-    const hq0=ds.length===HQ.themes.length&&ds.every((d,i)=>d.theme===HQ.themes[i]);   // the CEO and the chiefs (stars 5+) work in the executive office
+    const core=HQ.themes.map(t=>ds.find(d=>d.theme===t)),hq0=core.every(Boolean),extra=hq0?ds.filter(d=>!core.includes(d)):[];   // the city needs one department of each theme (any order); every other department gets a new lot in the expansion east of the block   // the CEO and the chiefs (stars 5+) work in the executive office
     const crews=ds.map(d=>ms.filter(m=>m.dept===d.id&&!(hq0&&isExec(m))&&!siteOf(m)&&!commuter(m)&&!restOf(m))),screws=sites.map(p=>ms.filter(m=>siteOf(m)?.id===p.id));
     const execAll=ms.filter(isExec),execCrew=execAll.filter(m=>!siteOf(m)&&!commuter(m)&&!restOf(m));
     const cols=ds.length<=1?1:ds.length<=4?2:3,hrows=Math.ceil(ds.length/cols);
     ROOM.W=RW;ROOM.H=RHD;
-    const hq=ds.length===HQ.themes.length&&ds.every((d,i)=>d.theme===HQ.themes[i]),GW=hq?HQ.gw:GAP,MG=hq?HQ.mg:GAP;
+    const hq=hq0,GW=hq?HQ.gw:GAP,MG=hq?HQ.mg:GAP;
     const houseH=hq?HQ.V:hrows*RHD+(hrows-1)*GW+2*MG,campTop=houseH+(hq?HQ.front:GAP*1.5);
     const zones6=ds.slice(0,6).map(d=>({id:d.id,color:d.color,name:d.name})),stt=m=>statusOf(m.id,m);
     const vts=sites.map((p,i)=>venueTier(screws[i],zones6,stt)),cw=Math.max(VT[0].W,...vts.map(i=>VT[i].W)),ch=Math.max(VT[0].H,...vts.map(i=>VT[i].H));
     const dtiers=ds.map(d=>deptTier(ms.filter(m=>m.dept===d.id&&!(hq&&isExec(m))).length)),etier=execTier(execAll.length);
     const vil=villageLayout(ps.filter(p=>p.done),GAP+Math.min(2,sites.length)*(cw+GAP)+(sites.length?40:0),campTop+GAP);
-    const items=ds.map((d,i)=>({k:'dept',id:d.id,d,crew:crews[i],tier:dtiers[i],x:hq?MG+(i%3)*(HQ.lotw+HQ.gw):MG+(i%cols)*(RW+GW),y:hq?MG+HQ.execlot+HQ.gw+Math.floor(i/3)*(HQ.loth+HQ.gw):MG+Math.floor(i/cols)*(RHD+GW)}))
+    const slot=d=>{const c=core.indexOf(d);if(c>=0)return[c%3,c/3|0];const k=extra.indexOf(d);return[3+(k>>1),k&1]};   // extras fill new columns two lots deep, continuing the block's grid
+    const look=d=>RTILE[d.theme]?d.theme:HQ.themes[hashStr(d.id)%HQ.themes.length];   // a custom theme borrows one of the six building styles
+    const items=ds.map((d,i)=>({k:'dept',id:d.id,d,crew:crews[i],tier:dtiers[i],look:hq?look(d):d.theme,x:hq?MG+slot(d)[0]*(HQ.lotw+HQ.gw):MG+(i%cols)*(RW+GW),y:hq?MG+HQ.execlot+HQ.gw+slot(d)[1]*(HQ.loth+HQ.gw):MG+Math.floor(i/cols)*(RHD+GW)}))
       .concat(hq?[{k:'exec',id:'exec',crew:execCrew,tier:etier,x:HQ.mg,y:MG},{k:'rest',id:'rest',crew:restCrew,x:HQ.mg+HQ.execw+HQ.gw,y:MG,rd:{w:340,h:260,url:TILES.restroom,tox:RESTT.ox,toy:RESTT.oy,tw:RESTT.w,th:RESTT.h}}]:[])
       .concat(sites.map((p,i)=>({k:'site',id:p.id,p,crew:screws[i],tier:vts[i],x:GAP+(i%2)*(cw+GAP),y:campTop+GAP+Math.floor(i/2)*(ch+GAP)}))).concat(hq?[]:[{k:'rest',id:'rest',crew:restCrew,x:GAP+(sites.length%2)*(cw+GAP),y:campTop+GAP+Math.floor(sites.length/2)*(ch+GAP)}]).concat(vil);
     items.forEach(it=>{if(it.k==='vg')return;const v=it.k==='site',bs=it.k==='base',vt=v?VT[it.tier]:null,bt=bs?BASE.tiers[it.tier]:null;it.l=(it.x+it.y)*K2-(v?vt.ox:bs?bt.ox:TOX);it.t=(it.y-it.x)*K2*.5-(v?vt.oy:bs?bt.oy:TOY);it.tw=v?vt.w:bs?bt.w:TW;it.th=v?vt.h:bs?bt.h:TH});
     const hqL=-HQ.ox,hqT=-HQ.oy;
     const PADX=hq?(innerWidth<=1000?150:560):0,PADY=hq?(innerWidth<=1000?110:380):0,minL=Math.min(...items.map(it=>it.l),hq?hqL:1e9)-PADX,minT=Math.min(...items.map(it=>it.t),hq?hqT:1e9)-PADY;
     iso={W:Math.max(Math.max(...items.map(it=>it.l+it.tw)),hq?hqL+HQ.w:0)-minL+PADX,H:Math.max(Math.max(...items.map(it=>it.t+it.th)),hq?hqT+HQ.h:0)-minT+PADY,hq,hx:hqL-minL,hy:hqT-minT};
+    {const ex=items.filter(it=>it.k==='dept'&&it.x>HQ.U),L=[hqL-minL],T=[hqT-minT-280],R=[hqL-minL+HQ.w],Bt=[hqT-minT+HQ.h];   // the default view fits the block plus its expansion
+      ex.forEach(it=>{L.push(it.l-minL);T.push(it.t-minT);R.push(it.l-minL+it.tw);Bt.push(it.t-minT+it.th)});iso.fb={l:Math.min(...L),t:Math.min(...T),w:Math.max(...R)-Math.min(...L),h:Math.max(...Bt)-Math.min(...T)}}
     CARDS=[];
-    COVER=hq?items.map(it=>{const B=it.k==='rest'?BLD.rest:it.k==='dept'&&BLD[it.d.theme]?BLD[it.d.theme][it.tier]:null;if(!B)return null;const l=Math.round(it.l-minL),tp=Math.round(it.t-minT);return{top:tp,poly:B.hit.split(' ').map(q=>{const[x,y]=q.split(',');return[l+TOX+ +x,tp+TOY+ +y]})}}).filter(Boolean):[];
-    floors.innerHTML=(hq?decorHTML(hqL-minL+HQ.ox,hqT-minT+HQ.oy,items,vts):'')+(hq?`<img class="hqbg" src="${TILES.hq}" alt="" draggable="false" style="left:${(hqL-minL).toFixed(0)}px;top:${(hqT-minT).toFixed(0)}px;width:${HQ.w}px;height:${HQ.h}px">${towerHTML(hqL-minL+HQ.ox,hqT-minT+HQ.oy)}`:'')+items.map(it=>{
+    COVER=hq?items.map(it=>{const B=it.k==='rest'?BLD.rest:it.k==='dept'&&BLD[it.look]?BLD[it.look][it.tier]:null;if(!B)return null;const l=Math.round(it.l-minL),tp=Math.round(it.t-minT);return{top:tp,poly:B.hit.split(' ').map(q=>{const[x,y]=q.split(',');return[l+TOX+ +x,tp+TOY+ +y]})}}).filter(Boolean):[];
+    floors.innerHTML=(hq?decorHTML(hqL-minL+HQ.ox,hqT-minT+HQ.oy,items,vts):'')+(hq?`<img class="hqbg" src="${TILES.hq}" alt="" draggable="false" style="left:${(hqL-minL).toFixed(0)}px;top:${(hqT-minT).toFixed(0)}px;width:${HQ.w}px;height:${HQ.h}px">${towerHTML(hqL-minL+HQ.ox,hqT-minT+HQ.oy)}${extHTML(hqL-minL+HQ.ox,hqT-minT+HQ.oy,extra.length)}`:'')+items.map(it=>{
       const left=Math.round(it.l-minL),top=Math.round(it.t-minT);
       if(it.k==='base')return baseHTML(it,left,top);
       if(it.k==='vg')return villageHTML(it,left,top);
@@ -3459,9 +3464,9 @@ function render(){
       if(it.k==='exec'){const dp=execAll.filter(siteOf).length,rs=execAll.filter(restOf).length;
         return roomHTML('exec','exec',left,top,'',it.crew,`<h2><i class="pc">\u2654\uFE0E</i>Command Tower<small class="tot" title="Agents">${execAll.length}</small></h2>${cntHTML(execAll)}<div class="more"><span class="plate">${it.crew.length} in office · ${dp} deployed · ${rs} resting</span></div>`,0,'#d9b45a','exec',{w:HQ.execw,h:EXEC_RH[it.tier],tier:it.tier,url:TILES.exec[it.tier],tox:XTILE[it.tier].ox,toy:XTILE[it.tier].oy,tw:XTILE[it.tier].w,th:XTILE[it.tier].h,anim:'exec'})}
       const d=it.d,crew=it.crew,dp=ms.filter(m=>m.dept===d.id&&siteOf(m)).length,rs=ms.filter(m=>m.dept===d.id&&restOf(m)).length;
-      const rdd=hq?{w:HQ.lotw,h:DEPT_RH[it.tier],tier:it.tier,url:TILES.room[d.theme][it.tier],tox:RTILE[d.theme][it.tier].ox,toy:RTILE[d.theme][it.tier].oy,tw:RTILE[d.theme][it.tier].w,th:RTILE[d.theme][it.tier].h}:null;
+      const lk=it.look,rdd=hq?{w:HQ.lotw,h:DEPT_RH[it.tier],tier:it.tier,url:TILES.room[lk][it.tier],tox:RTILE[lk][it.tier].ox,toy:RTILE[lk][it.tier].oy,tw:RTILE[lk][it.tier].w,th:RTILE[lk][it.tier].h}:null;
       return roomHTML('dept',d.id,left,top,hq?'':(THEMES[d.theme]?d.theme:'generic'),crew,`<h2>${hq&&PIECE_GLYPH[d.theme]?`<i class="pc">${PIECE_GLYPH[d.theme]}\uFE0E</i>`:''}${esc(d.name)}<small class="tot" title="Agents">${ms.filter(m=>m.dept===d.id).length}</small></h2>${cntHTML(ms.filter(m=>m.dept===d.id))}<div class="more"><span class="plate">${crew.length} in office · ${dp} deployed · ${rs} resting</span>
-          ${ui.unlocked?`<span class="sp"><button class="mini" data-act="newmember" data-dept="${d.id}">+ Agent</button><button class="mini" data-act="editdept" data-id="${d.id}">Edit</button></span>`:''}</div>`,hq?0:WALLH,d.color,d.theme,rdd);
+          ${ui.unlocked?`<span class="sp"><button class="mini" data-act="newmember" data-dept="${d.id}">+ Agent</button><button class="mini" data-act="editdept" data-id="${d.id}">Edit</button></span>`:''}</div>`,hq?0:WALLH,d.color,hq?lk:d.theme,rdd);
     }).join('')+CARDS.join('')+(hq?siteHTML(hqL-minL+HQ.ox,hqT-minT+HQ.oy):'');
     NPC_ORG={x:hqL-minL+HQ.ox,y:hqT-minT+HQ.oy};floors.classList.toggle('hlon',!!ui.hl);npcMount(false);
     for(const k in COMM_SITES)delete COMM_SITES[k];items.forEach(it=>{if(it.k==='site'){const vt=VT[it.tier];COMM_SITES[it.p.id]={u:it.x+vt.W*.5,v:it.y+vt.H*.55}}});commMount(ms);
@@ -3506,6 +3511,20 @@ function towerHTML(ox,oy){
   return `<svg class="ctower" aria-hidden="true" style="z-index:${809+Math.round(P(10,10,0)[1])}"><defs><pattern id="ctw" width="14" height="16" patternUnits="userSpaceOnUse"><rect x="3" y="4" width="8" height="6" fill="#00e5ff" opacity=".3"/></pattern><pattern id="ctw2" width="14" height="16" patternUnits="userSpaceOnUse"><rect x="3" y="4" width="8" height="6" fill="#ff2bd6" opacity=".38"/></pattern></defs>`
     +prism(u0,u1,v0,v1,0,300,sign)+prism(u0+90,u1-90,v0+35,v1-35,300,470,hex)+prism(um-28,um+28,vm-28,vm+28,470,540)
     +`<path d="M${ax} ${ay}V${ty}" stroke="#9aa3d0" stroke-width="2"/><circle class="blink" cx="${ax}" cy="${ty}" r="4" fill="#ff3b5c"/></svg>`}
+/* the city's expansion: when there are more departments than the block's six lots, new columns of lots are paved east of the block
+   in the island's own road and lot colours (lots two deep, with dashed lane lines), so the original buildings stay where they are */
+function extHTML(ox,oy,n){
+  if(!n)return '';
+  const P=(u,v)=>(ox+(u+v)*K2).toFixed(1)+','+(oy+(v-u)*K2*.5).toFixed(1),poly=(u0,v0,u1,v1,a)=>`<polygon points="${P(u0,v0)} ${P(u1,v0)} ${P(u1,v1)} ${P(u0,v1)}" ${a}/>`;
+  const cols=Math.ceil(n/2),G=HQ.gw,LW=HQ.lotw,LH=HQ.loth,v0=HQ.mg+HQ.execlot+G,u0=HQ.mg+3*(LW+G),u1=u0+cols*(LW+G)-G;
+  let g=poly(HQ.U-30,v0-G,u1+G,HQ.V+12,'fill="#131424"');
+  for(let k=0;k<n;k++){const u=u0+(k>>1)*(LW+G),v=v0+(k&1)*(LH+G);g+=poly(u,v,u+LW,v+LH,'fill="#2b2c4b"')}
+  const dash='fill="none" stroke="#ff9d1a" stroke-width="1.5" stroke-dasharray="7 7"';
+  g+=poly(u0-G/2,v0-G/2,u1+G/2,HQ.V-HQ.mg+G/2,dash);
+  for(let c=1;c<cols;c++){const u=u0+c*(LW+G)-G/2;g+=`<polyline points="${P(u,v0-G/2)} ${P(u,HQ.V-HQ.mg+G/2)}" ${dash}/>`}
+  {const v=v0+LH+G/2;g+=`<polyline points="${P(u0-G/2,v)} ${P(u1+G/2,v)}" ${dash}/>`}
+  return `<svg class="hqext" width="${iso.W|0}" height="${iso.H|0}" aria-hidden="true">${g}</svg>`;
+}
 function decorHTML(ox,oy,items,vts){
   const kinds=['tree1','tree1','tree2','tree2','tree3','pine1','pine1','pine2','pine2','bush1','bush1','bush2','bush2','rock0','rock1','rock2','stump'];
   const W=iso.W||0,H=iso.H||0,S=150,pos=[];
@@ -3514,7 +3533,7 @@ function decorHTML(ox,oy,items,vts){
   const uv=(x,y)=>[((x-ox)/K2-2*(y-oy)/K2)/2,((x-ox)/K2+2*(y-oy)/K2)/2],cs=[uv(XL,YT),uv(XR,YT),uv(XL,YB),uv(XR,YB)];
   const u0=Math.min(...cs.map(c=>c[0])),u1=Math.max(...cs.map(c=>c[0])),v0=Math.min(...cs.map(c=>c[1])),v1=Math.max(...cs.map(c=>c[1]));
   const rects=[[-120,-240,HQ.mg+HQ.execw+70,0],[-130,-180,HQ.U+130,HQ.V+130],[HQ.U/2-262,HQ.V+60,HQ.U/2+262,HQ.V+345]];   // only the paved block and the plaza are kept clear; the lawn around them gets trees, bushes and rocks
-  items.forEach(it=>{if(it.k==='site'){const vt=VT[it.tier];rects.push([it.x-80,it.y-80,it.x+vt.W+80,it.y+vt.H+80])}else if(it.k==='vg')rects.push([it.x,it.y,it.X1,it.Y1])});
+  items.forEach(it=>{if(it.k==='site'){const vt=VT[it.tier];rects.push([it.x-80,it.y-80,it.x+vt.W+80,it.y+vt.H+80])}else if(it.k==='vg')rects.push([it.x,it.y,it.X1,it.Y1]);else if(it.k==='dept'&&it.x>HQ.U)rects.push([HQ.U-40,HQ.mg+HQ.execlot-60,it.x+HQ.lotw+150,HQ.V+150])});
   for(let u=Math.floor(u0/S)*S;u<u1;u+=S)for(let v=Math.floor(v0/S)*S;v<v1;v+=S){
     const h=hashStr('dc'+u+','+v),ju=u+((h&255)/255-.5)*S*.8,jv=v+(((h>>>8)&255)/255-.5)*S*.8;
     if((h>>>16)%100<(ju>-320&&ju<HQ.U+320&&jv>-320&&jv<HQ.V+620?10:32))continue;
@@ -3555,12 +3574,12 @@ function fit(){
   const mob=innerWidth<=1000,onMap=!mob&&ui.panels&&(ui.tab||'map')==='map',rc=document.querySelector('.rcol'),br=document.querySelector('.brow');
   const padL=mob?10:104,padT=mob?10:(ui.tab||'map')==='map'?112:70,padR=mob?10:onMap&&rc.offsetWidth?rc.offsetWidth+32:16,padB=mob?10:onMap?(ui.drawer&&br.offsetHeight?br.offsetHeight+80:60):16;
   /* default view fits the headquarters itself (big and readable); "All" shows the venues and Rest area too */
-  const hqf=!!iso.hq&&!ui.fitAll&&!mob,fw=hqf?HQ.w:iso.W,fh=hqf?HQ.h+280:iso.H,padR2=hqf?16:padR;
+  const hqf=!!iso.hq&&!ui.fitAll&&!mob,fb=iso.fb||{l:iso.hx||0,t:(iso.hy||0)-280,w:HQ.w,h:HQ.h+280},fw=hqf?fb.w:iso.W,fh=hqf?fb.h:iso.H,padR2=hqf?16:padR;
   const avail=Math.max(300,map.offsetWidth-padL-padR2),availH=Math.max(240,map.offsetHeight-padT-padB); // offset sizes: a scrollbar appearing must not change the fit, or the map zooms in and out forever
   const s=Math.max(.3,Math.min(1.6,(mob?Math.max(.78,Math.min(1,avail/iso.W)):Math.max(.45,Math.min(1,avail/fw,availH/fh)))*ui.zoom));
   stage.style.width=iso.W*s+padL+padR+'px';stage.style.height=iso.H*s+padT+padB+'px';
   document.body.dataset.zoom=s<.72?'low':s<1.1?'mid':'high';
-  floors.style.setProperty('--s',s);floors.style.left=(hqf?padL+Math.max(0,(avail-fw*s)/2)-(iso.hx||0)*s:padL+Math.max(0,(avail-iso.W*s)/2))+'px';floors.style.top=(hqf?padT-((iso.hy||0)-280)*s:padT)+'px';
+  floors.style.setProperty('--s',s);floors.style.left=(hqf?padL+Math.max(0,(avail-fw*s)/2)-fb.l*s:padL+Math.max(0,(avail-iso.W*s)/2))+'px';floors.style.top=(hqf?padT-fb.t*s:padT)+'px';
   if(iso.hq&&typeof NPC_ORG!=='undefined'&&NPC_ORG){ // grass diamonds on the same 70-unit grid as the ground tile, so the lawn continues past the island at the same angle
     const w=2*70*K2*s,h=w/2,ox=stage.offsetLeft+parseFloat(floors.style.left)+NPC_ORG.x*s,oy=stage.offsetTop+parseFloat(floors.style.top)+NPC_ORG.y*s,mod=(a,n)=>((a%n)+n)%n;
     map.style.setProperty('background-image',LAWN.u,'important');map.style.setProperty('background-size',`${(w*LAWN.k).toFixed(2)}px ${(h*LAWN.k).toFixed(2)}px`,'important');
