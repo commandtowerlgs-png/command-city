@@ -3429,7 +3429,7 @@ function render(){
     const siteOf=m=>{if(commuter(m))return null;const s=statusOf(m.id,m);return s==='busy'?taskOf(m.id).p:s==='dep'?activeOf(m.id)[0]:null};
     const sites=ps.filter(p=>!p.done),restOf=m=>statusOf(m.id,m)==='away',restCrew=ms.filter(restOf);
     const core=HQ.themes.map(t=>ds.find(d=>d.theme===t)),hq0=core.every(Boolean),extra=hq0?ds.filter(d=>!core.includes(d)):[];   // the city needs one department of each theme (any order); every other department gets a new lot in the expansion east of the block   // the CEO and the chiefs (stars 5+) work in the executive office
-    const crews=ds.map(d=>ms.filter(m=>(hq0&&isExec(m)?m.at===d.id:m.dept===d.id)&&!siteOf(m)&&!commuter(m)&&!restOf(m)))   // the CEO works from the tower unless dragged to a building (m.at),screws=sites.map(p=>ms.filter(m=>siteOf(m)?.id===p.id));
+    const crews=ds.map(d=>ms.filter(m=>(hq0&&isExec(m)?m.at===d.id:m.dept===d.id)&&!siteOf(m)&&!commuter(m)&&!restOf(m))),screws=sites.map(p=>ms.filter(m=>siteOf(m)?.id===p.id));   // the CEO works from the tower unless dragged to a building (m.at)
     const execAll=ms.filter(isExec),execCrew=execAll.filter(m=>!siteOf(m)&&!commuter(m)&&!restOf(m)&&!(hq0&&st.depts[m.at]));
     const cols=ds.length<=1?1:ds.length<=4?2:3,hrows=Math.ceil(ds.length/cols);
     ROOM.W=RW;ROOM.H=RHD;
