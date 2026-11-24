@@ -3429,8 +3429,8 @@ function render(){
     const siteOf=m=>{if(commuter(m))return null;const s=statusOf(m.id,m);return s==='busy'?taskOf(m.id).p:s==='dep'?activeOf(m.id)[0]:null};
     const sites=ps.filter(p=>!p.done),restOf=m=>statusOf(m.id,m)==='away',restCrew=ms.filter(restOf);
     const core=HQ.themes.map(t=>ds.find(d=>d.theme===t)),hq0=core.every(Boolean),extra=hq0?ds.filter(d=>!core.includes(d)):[];   // the city needs one department of each theme (any order); every other department gets a new lot in the expansion east of the block   // the CEO and the chiefs (stars 5+) work in the executive office
-    const crews=ds.map(d=>ms.filter(m=>m.dept===d.id&&!(hq0&&isExec(m))&&!siteOf(m)&&!commuter(m)&&!restOf(m))),screws=sites.map(p=>ms.filter(m=>siteOf(m)?.id===p.id));
-    const execAll=ms.filter(isExec),execCrew=execAll.filter(m=>!siteOf(m)&&!commuter(m)&&!restOf(m));
+    const crews=ds.map(d=>ms.filter(m=>(hq0&&isExec(m)?m.at===d.id:m.dept===d.id)&&!siteOf(m)&&!commuter(m)&&!restOf(m)))   // the CEO works from the tower unless dragged to a building (m.at),screws=sites.map(p=>ms.filter(m=>siteOf(m)?.id===p.id));
+    const execAll=ms.filter(isExec),execCrew=execAll.filter(m=>!siteOf(m)&&!commuter(m)&&!restOf(m)&&!(hq0&&st.depts[m.at]));
     const cols=ds.length<=1?1:ds.length<=4?2:3,hrows=Math.ceil(ds.length/cols);
     ROOM.W=RW;ROOM.H=RHD;
     const hq=hq0,GW=hq?HQ.gw:GAP,MG=hq?HQ.mg:GAP;
@@ -4600,7 +4600,12 @@ document.addEventListener('drop',async e=>{
     const p=st.projects[tid];
     if((p.members||[]).includes(id)){if(resting)await save(()=>api.upd('members',id,wake),`${first} is back on ${p.name}`);else toast(`${m.name} is already on ${p.name}`);return}
     if(await save(async()=>{await api.upd('projects',tid,{members:[...(p.members||[]),id]});if(resting)await api.upd('members',id,wake)},`${m.name} joined ${p.name}`))logAct(`${first} deployed to ${p.name}`,'deploy',id);
-  }else{ // dropped on a department room
+  }else{ // dropped on a department room, or on the Command Tower
+    if(kind==='exec'||(isExec(m)&&st.depts[tid])){   // the CEO can work from any building; the tower is their home
+      if(!isExec(m))return toast(`Only the CEO works in the Command Tower. Drop ${first} on a department.`);
+      const to=kind==='exec'?'':tid;if((m.at||'')===to&&!resting)return toast(to?`${first} is already working from ${st.depts[to].name}`:`${first} is already in the Command Tower`);
+      return save(()=>api.upd('members',id,{at:to,...(resting?wake:{})}),to?`${first} is working from ${st.depts[to].name}`:`${first} is back in the Command Tower`);
+    }
     const from=dragFrom,home=st.depts[m.dept]?.name||'their department';
     if(from&&from.kind==='site'&&st.projects[from.id]){await orgRemove(from.id,id);toast(`${first} is back in ${home}`)} // recalled from a venture: always go to their OWN department
     else if(resting)await save(()=>api.upd('members',id,wake),`${first} is back in ${home}`);
