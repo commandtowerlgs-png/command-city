@@ -3440,7 +3440,7 @@ function render(){
     const dtiers=ds.map(d=>deptTier(ms.filter(m=>m.dept===d.id&&!(hq&&isExec(m))).length)),etier=execTier(execAll.length);
     const vil=villageLayout(ps.filter(p=>p.done),GAP+Math.min(2,sites.length)*(cw+GAP)+(sites.length?40:0),campTop+GAP);
     const slot=d=>{const c=core.indexOf(d);if(c>=0)return[c%3,c/3|0];const k=extra.indexOf(d);return[3+(k>>1),k&1]};   // extras fill new columns two lots deep, continuing the block's grid
-    const look=d=>RTILE[d.theme]?d.theme:HQ.themes[hashStr(d.id)%HQ.themes.length];   // a custom theme borrows one of the six building styles
+    const look=d=>core.includes(d)?d.theme:genLook(d);   // the original six keep their Blender buildings; every other department gets its own generated one
     const items=ds.map((d,i)=>({k:'dept',id:d.id,d,crew:crews[i],tier:dtiers[i],look:hq?look(d):d.theme,x:hq?MG+slot(d)[0]*(HQ.lotw+HQ.gw):MG+(i%cols)*(RW+GW),y:hq?MG+HQ.execlot+HQ.gw+slot(d)[1]*(HQ.loth+HQ.gw):MG+Math.floor(i/cols)*(RHD+GW)}))
       .concat(hq?[{k:'exec',id:'exec',crew:execCrew,tier:etier,x:HQ.mg,y:MG},{k:'rest',id:'rest',crew:restCrew,x:HQ.mg+HQ.execw+HQ.gw,y:MG,rd:{w:340,h:260,url:TILES.restroom,tox:RESTT.ox,toy:RESTT.oy,tw:RESTT.w,th:RESTT.h}}]:[])
       .concat(sites.map((p,i)=>({k:'site',id:p.id,p,crew:screws[i],tier:vts[i],x:GAP+(i%2)*(cw+GAP),y:campTop+GAP+Math.floor(i/2)*(ch+GAP)}))).concat(hq?[]:[{k:'rest',id:'rest',crew:restCrew,x:GAP+(sites.length%2)*(cw+GAP),y:campTop+GAP+Math.floor(sites.length/2)*(ch+GAP)}]).concat(vil);
@@ -3511,6 +3511,121 @@ function towerHTML(ox,oy){
   return `<svg class="ctower" aria-hidden="true" style="z-index:${809+Math.round(P(10,10,0)[1])}"><defs><pattern id="ctw" width="14" height="16" patternUnits="userSpaceOnUse"><rect x="3" y="4" width="8" height="6" fill="#00e5ff" opacity=".3"/></pattern><pattern id="ctw2" width="14" height="16" patternUnits="userSpaceOnUse"><rect x="3" y="4" width="8" height="6" fill="#ff2bd6" opacity=".38"/></pattern></defs>`
     +prism(u0,u1,v0,v1,0,300,sign)+prism(u0+90,u1-90,v0+35,v1-35,300,470,hex)+prism(um-28,um+28,vm-28,vm+28,470,540)
     +`<path d="M${ax} ${ay}V${ty}" stroke="#9aa3d0" stroke-width="2"/><circle class="blink" cx="${ax}" cy="${ty}" r="4" fill="#ff3b5c"/></svg>`}
+/* NEW DEPARTMENT BUILDINGS: every department beyond the original six gets its own building, generated here in the browser in the
+   same pixel style as the Blender renders (2:1 iso, three-tone faces, lit window grids, neon corner strips, ad screens, blade signs,
+   rooftop clutter, a soft dark outline, drawn at 2/3 size and scaled up crisp). It is built from the department itself: the name picks
+   the emblem on its big screen and the building's character (legal = stone columns, tech = glass and server light, media = screens...),
+   the department colour is its neon, and its id seeds the layout, so no two departments get the same building. Same lot footprint
+   (340 x 400, buildings stand behind the front line) as the original six, so walking, cover and clicks work the same way. */
+const GEN={};
+const GEN_ICON={   // 7 x 7 emblems for the big screen, matched on words in the department name
+  law:['...X...','XXXXXXX','X..X..X','X..X..X','XX.X.XX','...X...','.XXXXX.'],
+  game:['.XXXXX.','XXXXXXX','X.XXX.X','XXX.XXX','X.XXX.X','XXXXXXX','.X...X.'],
+  media:['XXXXX..','X...XX.','X...X.X','X...XX.','XXXXX..','.......','XXXXXXX'],
+  music:['...XXXX','...X..X','...X..X','...X..X','.XXX.XX','XXXX.XX','.XX....'],
+  code:['XX.....','.XX....','..XX...','.XX....','XX.....','.......','...XXXX'],
+  shield:['XXXXXXX','X.....X','X.XXX.X','X.XXX.X','.X.X.X.','..X.X..','...X...'],
+  chat:['XXXXXXX','X.....X','X.X.X.X','X.....X','XXXXXXX','.XX....','.X.....'],
+  brush:['.....XX','....XXX','...XXX.','..XXX..','.XX....','XXX....','XX.....'],
+  flask:['..XXX..','...X...','...X...','..X.X..','.X...X.','X.XXX.X','XXXXXXX'],
+  cross:['..XXX..','..XXX..','XXXXXXX','XXXXXXX','XXXXXXX','..XXX..','..XXX..'],
+  cup:['.X.X...','..X.X..','XXXXXX.','X....XX','X....XX','X....X.','.XXXX..'],
+  book:['XXX.XXX','X.XXX.X','X..X..X','X..X..X','X..X..X','XXXXXXX','...X...'],
+  chart:['......X','.....XX','..X.XXX','..XXXXX','X.XXXXX','XXXXXXX','XXXXXXX'],
+  box:['..XXX..','.X...X.','XXXXXXX','X..X..X','X..X..X','X..X..X','XXXXXXX'],
+  coin:['.XXXXX.','XX.X.XX','X.XXX.X','X..X..X','X.XXX.X','XX.X.XX','.XXXXX.'],
+  house:['...X...','..XXX..','.XXXXX.','XXXXXXX','.X...X.','.X.XX..','.X.XX..'],
+  plane:['...X...','...X...','..XXX..','XXXXXXX','...X...','..XXX..','.XX.XX.'],
+  heart:['.XX.XX.','XXXXXXX','XXXXXXX','.XXXXX.','..XXX..','...X...','.......'],
+  mega:['.....XX','...XXXX','XXXXXXX','XXXXXXX','...XXXX','..X..XX','..X....'],
+  globe:['..XXX..','.X.X.X.','XXXXXXX','X..X..X','XXXXXXX','.X.X.X.','..XXX..']
+};
+const GEN_KIND=[   // [words, emblem, building character]
+  [/law|legal|compliance|contract|policy|govern/,'law','stone'],[/e-?sport|gam|play|stream/,'game','screens'],
+  [/media|content|video|film|studio|photo|broadcast|pr\b|press/,'media','screens'],[/music|audio|sound|podcast/,'music','screens'],
+  [/tech|it\b|dev|engineer|software|platform|infra|cloud|ai\b|data sci/,'code','glass'],[/secur|risk|safety|trust/,'shield','stone'],
+  [/support|customer|service|success|help|care/,'chat','glass'],[/design|creative|art|brand|ux|ui\b/,'brush','screens'],
+  [/research|science|lab|r&d|insight/,'flask','glass'],[/health|wellness|medical|clinic|fitness/,'cross','wall'],
+  [/food|kitchen|cafe|bev|hospitality|restaurant/,'cup','wall'],[/educat|train|academy|learn|school|coach/,'book','stone'],
+  [/data|analytic|report|metric|intel/,'chart','glass'],[/logist|deliver|supply|ship|warehouse|procure|fulfil/,'box','wall'],
+  [/financ|account|treasur|invest|fund|tax|payroll/,'coin','stone'],[/real ?estate|property|facilit|office/,'house','wall'],
+  [/travel|event|tour|trip/,'plane','glass'],[/people|hr\b|culture|talent|recruit|communit/,'heart','wall'],
+  [/sales|market|growth|advert|campaign|social/,'mega','screens'],[/global|international|expan|export|partner/,'globe','glass']
+];
+function genBuilding(d,tier){
+  const key=d.id+'|'+tier+'|'+d.name+'|'+d.color;if(GEN[key])return GEN[key];
+  const K=Math.SQRT1_2,SC=1.5,W=340,D=400,s=tier>=2?1.15:1,Bv=tier>=2?240:220;
+  let seed=hashStr('bld:'+d.id)||1;const rnd=()=>{seed=(seed+0x6D2B79F5)>>>0;let t=seed;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296},pick=a=>a[Math.floor(rnd()*a.length)];
+  const nm=(d.name||'').toLowerCase(),kind=GEN_KIND.find(k=>k[0].test(nm)),icon=kind?kind[1]:null,style=kind?kind[2]:pick(['glass','wall','screens','stone']);
+  const neon=/^#[0-9a-f]{6}$/i.test(d.color||'')?d.color:'#00e5ff',ACC=['#00e5ff','#ff2bd6','#fcee0a','#ff7a1a','#39ff88','#9d6bff','#ff3b5c'].filter(c=>c.toLowerCase()!==neon.toLowerCase());
+  const base={glass:'#2a3a66',wall:'#3b3768',stone:'#5d5a7e',screens:'#2e2b55'}[style],dark='#191a30',pave='#2b2c4b';
+  const shade=(hex,f)=>{const n=parseInt(hex.slice(1),16),c=[n>>16,(n>>8)&255,n&255].map(x=>Math.max(0,Math.min(255,Math.round(x*f))));return'#'+c.map(x=>x.toString(16).padStart(2,'0')).join('')};
+  const items=[],solid=[];let tallest=null;
+  const box=(u0,u1,v0,v1,z0,z1,col,o={})=>{const b={u0,u1,v0,v1,z0,z1,col,deco:[],glow:o.glow};items.push(b);if(o.solid){solid.push([u0,v0,u1,v1,z1]);if(!tallest||z1>tallest.z1)tallest=b}return b};
+  /* facades: face 'v' is the front (v = v1), face 'u' the left side (u = u0) */
+  const win=(b,face,w=7,h=8,da=13,dz=15)=>{const a0=face==='v'?b.u0:b.v0,a1=face==='v'?b.u1:b.v1,n=Math.max(1,(a1-a0-10)/da|0),rows=Math.max(1,(b.z1-b.z0-14)/dz|0),off=(a1-a0-(n-1)*da-w)/2;
+    const pool=style==='glass'?['#7df3ff','#7df3ff','#fff1a8','#1c2140','#1c2140']:['#ffd84a','#ffd84a','#ffd84a','#7df3ff','#ff8ae8','#1c2140','#1c2140'];
+    for(let j=0;j<rows;j++){const lit=rnd()<.8;for(let i=0;i<n;i++){const a=a0+off+i*da,z=b.z0+8+j*dz;b.deco.push([face,a,a+w,z,z+h,lit?pick(pool):'#1c2140'])}}};
+  const tower=(u0,u1,v0,v1,z0,z1,col)=>{const b=box(u0,u1,v0,v1,z0,z1,base,{solid:true});win(b,'v');win(b,'u');
+    b.deco.push(['v',u0,u0+3,z0,z1,col],['v',u0,u1,z1-4,z1,col],['u',v0,v1,z1-4,z1,col]);return b};
+  const screen=(b,a0,a1,z0,z1)=>{b.deco.push(['v',a0-3,a1+3,z0-3,z1+3,dark],['v',a0,a1,z0,z1,shade(neon,.55)]);b.screen=[a0,a1,z0,z1]};
+  const blade=(b,v,z0,z1)=>{const segs=Math.max(2,(z1-z0)/16|0),sh=(z1-z0)/segs,c=[neon,pick(ACC)];box(b.u0-18,b.u0,v,v+5,z0-2,z1+2,dark).deco=[];
+    for(let k=0;k<segs;k++)items[items.length-1].deco.push(['v',b.u0-17,b.u0-1,z0+k*sh+2,z0+(k+1)*sh-2,c[k%2]])};
+  const roofKit=(b)=>{const z=b.z1,cu=(b.u0+b.u1)/2,cv=(b.v0+b.v1)/2;
+    if(rnd()<.8){box(b.u0+10,b.u0+24,b.v0+10,b.v0+22,z,z+9,'#6b6d85')}
+    if(rnd()<.7){const u=b.u1-22,v=b.v1-26;box(u,u+3,v,v+3,z,z+40+rnd()*40,'#8a8ca6');const t=items[items.length-1];box(u-2,u+5,v-2,v+5,t.z1,t.z1+5,'#ff3b5c',{glow:1})}
+    if(rnd()<.5){box(cu-12,cu+12,b.v0+12,b.v0+36,z,z+22,'#4a4868')}
+    return[cu,cv,z]};
+  /* the site: paving, accent kerbs in the department colour, then one of four massings */
+  box(0,W,0,D,0,4,pave).deco.push(['v',0,W,0,4,shade(pave,.8)]);box(0,W,D-5,D,4,6,neon,{glow:1});box(0,5,0,D,4,6,neon,{glow:1});
+  const H=Math.round((style==='stone'?230:style==='screens'?280:300)*s*(.85+rnd()*.3)),lay=Math.floor(rnd()*4);let roof;
+  if(lay===0){   // one tall tower over a wide podium
+    const P=box(20,320,20,Bv,4,56,base==='#5d5a7e'?base:shade(base,.9),{solid:true});win(P,'v',14,14,24,20);win(P,'u',14,14,24,20);P.deco.push(['v',20,320,52,56,neon]);
+    const T=tower(90,250,40,170,56,H,neon);screen(T,105,235,56+(H-56)*.45,56+(H-56)*.8);blade(T,120,80,Math.min(H-20,220));roof=roofKit(T)}
+  else if(lay===1){   // twin towers joined by a skybridge
+    const A=tower(25,120,30,150,4,H,neon),B=tower(220,315,30,150,4,Math.round(H*.82),pick(ACC));
+    const zb=Math.round(H*.55);box(120,220,70,110,zb,zb+22,'#2a3a66').deco.push(['v',120,220,zb+8,zb+12,neon]);
+    screen(A,35,110,4+H*.5,4+H*.8);box(130,210,170,Bv,4,40,shade(base,.9),{solid:true}).deco.push(['v',134,206,8,30,'#ffd84a'],['v',130,210,36,40,neon]);roof=roofKit(A)}
+  else if(lay===2){   // a stepped tower, each setback ringed in neon
+    let u0=30,u1=310,v0=30,v1=Bv-10,z=4,T;const steps=3;for(let k=0;k<steps;k++){const z1=z+Math.round((H-4)/steps);T=tower(u0,u1,v0,v1,z,z1,k%2?pick(ACC):neon);
+      if(k===1)screen(T,u0+20,u1-20,z+(z1-z)*.25,z+(z1-z)*.8);z=z1;u0+=38;u1-=38;v0+=14;v1-=30}
+    blade(items.find(b=>b.u0===30&&b.solid!==false&&b.z0===4)||T,Bv-60,40,140);roof=roofKit(T)}
+  else{   // a cluster of three towers like a little skyline
+    const hs=[.6,1,.78].map(f=>Math.round(H*f)),us=[[24,110],[120,220],[230,316]];let tall;
+    us.forEach(([a,b],i)=>{const t=tower(a,b,i===1?24:44,i===1?150:Bv-20,4,hs[i],i===1?neon:pick(ACC));if(i===1){tall=t;screen(t,a+12,b-12,4+hs[i]*.5,4+hs[i]*.82)}if(i===0)blade(t,Bv-70,30,Math.min(hs[0]-10,140))});
+    roof=roofKit(tall)}
+  /* street level: a lit shop strip along the front with awnings, and the emblem on the big screen */
+  for(let x=24;x+34<=316;x+=46){const c=pick(ACC);box(x,x+40,Bv+2,Bv+6,4,30,'#ffd84a',{glow:1}).deco.push(['v',x,x+40,26,30,c])}
+  const ico=GEN_ICON[icon]||null;
+  /* --- draw: painter's order back to front, faces in three tones, then a crisp pixel pass and a dark outline */
+  const Hmax=Math.max(...items.map(b=>b.z1))+20,ox=10,oy=Math.ceil(120+.866*Hmax+10),cw=Math.ceil((W+D)*K+20),ch=Math.ceil(oy+D*K*.5+12);
+  const c=document.createElement('canvas');c.width=Math.ceil(cw/SC);c.height=Math.ceil(ch/SC);const g=c.getContext('2d');g.scale(1/SC,1/SC);
+  const P=(u,v,z)=>[(u+v)*K+ox,(v-u)*K*.5-.866*z+oy],poly=(pts,col)=>{g.fillStyle=col;g.beginPath();pts.forEach((p,i)=>i?g.lineTo(...p):g.moveTo(...p));g.closePath();g.fill()};
+  const face=(f,a0,a1,z0,z1,at,col)=>poly(f==='v'?[P(a0,at,z0),P(a1,at,z0),P(a1,at,z1),P(a0,at,z1)]:[P(at,a0,z0),P(at,a1,z0),P(at,a1,z1),P(at,a0,z1)],col);
+  const dk=b=>b.z0===0?-1e9:(b.v0+b.v1)/2-(b.u0+b.u1)/2+b.z0*.6;items.sort((a,b)=>dk(a)-dk(b));   // the paving first, then back to front
+  for(const b of items){const lit=b.glow?1.15:1;
+    poly([P(b.u0,b.v0,b.z0),P(b.u0,b.v1,b.z0),P(b.u0,b.v1,b.z1),P(b.u0,b.v0,b.z1)],shade(b.col,.62*lit));   // left side
+    poly([P(b.u0,b.v1,b.z0),P(b.u1,b.v1,b.z0),P(b.u1,b.v1,b.z1),P(b.u0,b.v1,b.z1)],shade(b.col,.82*lit));  // front
+    poly([P(b.u0,b.v0,b.z1),P(b.u1,b.v0,b.z1),P(b.u1,b.v1,b.z1),P(b.u0,b.v1,b.z1)],shade(b.col,1.05*lit)); // top
+    for(const [f,a0,a1,z0,z1,col] of b.deco)face(f,a0,a1,z0,z1,f==='v'?b.v1+.5:b.u0-.5,col);
+    if(b.screen&&ico){const [a0,a1,z0,z1]=b.screen,px=Math.min((a1-a0)/9,(z1-z0)/9),au=(a0+a1)/2-3.5*px,az=(z0+z1)/2+3.5*px;
+      ico.forEach((row,r)=>[...row].forEach((ch2,k)=>{if(ch2==='X')face('v',au+k*px,au+(k+1)*px,az-(r+1)*px,az-r*px,b.v1+1,'#ffffff')}))}
+    else if(b.screen){const [a0,a1,z0,z1]=b.screen,L=(d.name||'?').trim()[0].toUpperCase(),t=document.createElement('canvas');t.width=8;t.height=10;const tg=t.getContext('2d');
+      tg.fillStyle='#fff';tg.font='bold 10px monospace';tg.textBaseline='top';tg.fillText(L,1,0);const m=tg.getImageData(0,0,8,10).data,px=Math.min((a1-a0)/10,(z1-z0)/12),au=(a0+a1)/2-4*px,az=(z0+z1)/2+5*px;
+      for(let r=0;r<10;r++)for(let k=0;k<8;k++)if(m[(r*8+k)*4+3]>110)face('v',au+k*px,au+(k+1)*px,az-(r+1)*px,az-r*px,b.v1+1,'#ffffff')}}
+  const im=g.getImageData(0,0,c.width,c.height),a=im.data,Wc=c.width,Hc=c.height,op=new Uint8Array(Wc*Hc);
+  for(let i=0;i<Wc*Hc;i++){op[i]=a[i*4+3]>100;a[i*4+3]=op[i]?255:0}
+  for(let y=0;y<Hc;y++)for(let x=0;x<Wc;x++){const i=y*Wc+x;if(op[i])continue;if((x>0&&op[i-1])||(x<Wc-1&&op[i+1])||(y>0&&op[i-Wc])||(y<Hc-1&&op[i+Wc])){a[i*4]=14;a[i*4+1]=12;a[i*4+2]=30;a[i*4+3]=255}}
+  g.setTransform(1,0,0,1,0,0);g.putImageData(im,0,0);
+  const top=[],bot=[];for(let x=0;x<Wc;x+=2){let y0=-1,y1=-1;for(let y=0;y<Hc;y++)if(a[(y*Wc+x)*4+3]){if(y0<0)y0=y;y1=y}if(y0>=0){top.push([x,y0]);bot.push([x,y1+1])}}
+  const hit=top.concat(bot.reverse()).map(([x,y])=>`${(x*SC-ox).toFixed(0)},${(y*SC-oy).toFixed(0)}`).join(' ');
+  return GEN[key]={url:c.toDataURL(),tile:{w:Wc*SC,h:Hc*SC,ox,oy},bld:{front:Bv,roof,hit},boxes:solid};
+}
+/* register a department's generated building under its own look key, like the six Blender ones (TILES.room / RTILE / BLD / OBST) */
+function genLook(d){const lk='gen:'+d.id,urls=[],tiles=[],blds=[];
+  for(const tier of [0,1,2]){const r=genBuilding(d,Math.max(1,tier));urls.push(r.url);tiles.push(r.tile);blds.push(r.bld);OBST[lk+':'+tier]=r.boxes}
+  TILES.room[lk]=urls;RTILE[lk]=tiles;BLD[lk]=blds;return lk}
+
 /* the city's expansion: when there are more departments than the block's six lots, new columns of lots are paved east of the block
    in the island's own road and lot colours (lots two deep, with dashed lane lines), so the original buildings stay where they are */
 function extHTML(ox,oy,n){
