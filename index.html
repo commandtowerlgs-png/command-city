@@ -4626,7 +4626,7 @@ document.addEventListener('change',e=>{
 });
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.classList?.contains('ti')){e.preventDefault();e.target.click()}});
 document.addEventListener('change',e=>{if(e.target.id==='tl-sel'){ui.tlproj=e.target.value;render()}});
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(ui.view)close();else if(ui.sheet)closeSheet()}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(ui.view)close();else if(ui.sheet)closeSheet();else if(ui.tab&&ui.tab!=='map'&&!e.target.closest?.('input,textarea,select,[contenteditable]')){ui.tab='map';render()}}});   // Escape: close a popup or sheet first, otherwise any page goes back to the overview
 document.addEventListener('submit',async e=>{
   e.preventDefault();pull();
   const v=ui.view,f=e.target.dataset.form,g=id=>document.getElementById(id).value.trim();
