@@ -1631,7 +1631,8 @@ body{background:#05040c}
 .ctower .blink{animation:ctblink 1.6s steps(2) infinite}
 .ctower .scan{animation:ctscan 5s linear infinite}
 .rw .wip{position:absolute;left:0;top:0;overflow:visible;pointer-events:none}
-.wip .wl{animation:wlit 6s steps(1) infinite}@keyframes wlit{0%,100%{opacity:.95}45%{opacity:.18}}
+.rw .wipimg{position:absolute;left:0;top:0;max-width:none;image-rendering:pixelated;pointer-events:none;user-select:none;-webkit-user-drag:none}
+.wip .wo{animation:wlo 8s steps(1) infinite}@keyframes wlo{0%,100%{opacity:0}55%{opacity:1}}
 .wip .bk{animation:ctblink 1.6s steps(2) infinite}.wip .bk2{animation:ctblink .9s steps(2) infinite}
 .wip .wweld{animation:wweld .42s steps(2) infinite}@keyframes wweld{0%{opacity:.85}50%{opacity:.12}}
 .wip .spk{animation:wspk 1.2s linear infinite}@keyframes wspk{0%{transform:translate(0,0);opacity:1}100%{transform:translate(var(--dx),26px);opacity:0}}
@@ -3061,7 +3062,7 @@ const isExec=m=>(m.stars||2)>=6,   /* only the CEO works in the executive office
 /* chess theme: each department is a piece (statue in its room, glyph on its sign) */
 const PIECE_GLYPH={growth:'\u265B',stage:'\u265D',tables:'\u265F',depot:'\u265C',vault:'\u265A',lab:'\u265E'};
 /* Venture venues come in three sizes; the page picks the smallest whose department zones can hold the crew (zone size, desks and bed slots grow). */
-const VT=[{i:0,W:300,H:300,ox:20,oy:380,w:470,h:500}];
+const VT=[{i:0,W:300,H:300,ox:20,oy:380,w:471,h:501}];
 /* VENTURE SITES: every active venture is a skyscraper under construction on a small fenced lot. It rises floor by floor with the
    venture's progress: lit glass floors below, a bare steel frame on top with welding sparks, a tower crane carrying beams up from
    the yard, a hoist cage riding the face, floodlights and beacons. Drawn in the map's own iso projection (tz), like the Command Tower. */
@@ -3069,6 +3070,18 @@ const WIP={N:10,FH:24,u0:160,u1:272,v0:24,v1:136};
 const wipFloors=prog=>{const done=prog>=100,fin=done?WIP.N:1+Math.floor(Math.max(0,prog)/100*(WIP.N-2));return[fin,done?fin:Math.min(WIP.N,fin+2)]};
 const wipTop=prog=>wipFloors(prog)[1]*WIP.FH;
 const WIP_SPOTS=(()=>{const a=[];for(let u=28;u<=268;u+=40)a.push([u,190]);for(let v=164;v>=100;v-=32)for(let u=28;u<=108;u+=40)a.push([u,v]);for(const v of [222,254,284])for(let u=28;u<=268;u+=40)a.push([u,v]);return a})();
+const WIPIMG={},WIPSC=1.5;
+const PX3={'0':'111101101101111','1':'010110010010111','2':'111001111100111','3':'111001111001111','4':'101101111001001','5':'111100111001111','6':'111100111101111','7':'111001001001001','8':'111101111101111','9':'111101111001111','%':'101001010100101'};
+/* the still part of a site goes through the same pixel pass as the generated buildings: drawn at 2/3 size, alpha snapped, a dark
+   outline, shown 1.5x with crisp pixels. It is an SVG drawn into a canvas, so it is ready a moment later; the cache keeps it. */
+function wipPixel(svg,w,h){
+  const k='w'+hashStr(svg);if(WIPIMG[k]!==undefined)return[k,WIPIMG[k]];WIPIMG[k]=null;
+  const im=new Image();im.onload=()=>{const c=document.createElement('canvas');c.width=Math.round(w/WIPSC);c.height=Math.round(h/WIPSC);const g=c.getContext('2d');g.drawImage(im,0,0,c.width,c.height);
+    const d=g.getImageData(0,0,c.width,c.height),a=d.data,W=c.width,H=c.height,op=new Uint8Array(W*H);
+    for(let i=0;i<W*H;i++){op[i]=a[i*4+3]>100;a[i*4+3]=op[i]?255:0}
+    for(let y=0;y<H;y++)for(let x=0;x<W;x++){const i=y*W+x;if(op[i])continue;if((x>0&&op[i-1])||(x<W-1&&op[i+1])||(y>0&&op[i-W])||(y<H-1&&op[i+W])){a[i*4]=14;a[i*4+1]=12;a[i*4+2]=30;a[i*4+3]=255}}
+    g.putImageData(d,0,0);const url=WIPIMG[k]=c.toDataURL();document.querySelectorAll(`img[data-wip="${k}"]`).forEach(e=>{e.src=url;e.style.visibility=''})};
+  im.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);return[k,null]}
 function wipHTML(prog,dc,key,vt){
   const {FH,u0,u1,v0,v1}=WIP,[fin,tot]=wipFloors(prog),zf=fin*FH,zt=tot*FH,zm=zt+56,W=u1-u0,D=v1-v0,id='wp'+hashStr('wip:'+key),AN=!matchMedia('(prefers-reduced-motion: reduce)').matches;
   let r=(hashStr('wip:'+key)%2147483646)+1;const rnd=()=>(r=(r*16807)%2147483647)/2147483647;
@@ -3082,62 +3095,72 @@ function wipHTML(prog,dc,key,vt){
   const mV=(u,v,z)=>{const[x,y]=tz(u,v,z);return `matrix(${K2},${-K2*.5},0,.866,${f1(x)},${f1(y)})`},mU=(u,v,z)=>{const[x,y]=tz(u,v,z);return `matrix(${K2},${K2*.5},0,.866,${f1(x)},${f1(y)})`};
   const rel=(du,dv,dz)=>[(du+dv)*K2,(dv-du)*K2*.5-.866*dz],rbox=(a,b,c,d,z0,z1,cT,cV,cU)=>{const P=q=>pt(q.map(e=>rel(...e)));
     return `<polygon points="${P([[a,d,z0],[b,d,z0],[b,d,z1],[a,d,z1]])}" fill="${cV}"/><polygon points="${P([[a,c,z0],[a,d,z0],[a,d,z1],[a,c,z1]])}" fill="${cU}"/><polygon points="${P([[a,c,z1],[b,c,z1],[b,d,z1],[a,d,z1]])}" fill="${cT}"/>`};
-  const C='#00e5ff',M='#ff2bd6',Y='#fcee0a',Yd='#b8a300',O='#ff8a1f',ST='#2a2450';
-  const lit=(cols,rows,c)=>{let o='';for(let k=0;k<rows;k++)for(let j=0;j<cols;j++)if(rnd()<.3)o+=`<rect class="wl" x="${j*12+2}" y="${k*FH+5}" width="8" height="12" fill="${rnd()<.55?c:'#ffd27a'}" style="animation-delay:${(-rnd()*6).toFixed(2)}s;animation-duration:${(4+rnd()*6).toFixed(1)}s"/>`;return o};
-  let s=`<svg class="wip" aria-hidden="true" style="width:${vt.w}px;height:${vt.h}px"><defs><pattern id="${id}g" width="12" height="${FH}" patternUnits="userSpaceOnUse"><rect width="12" height="${FH}" fill="#0f0a24"/><rect x="2" y="5" width="8" height="12" fill="#24507a" opacity=".6"/><rect y="${FH-2}" width="12" height="2" fill="#05040c"/></pattern></defs>`;
-  /* the lot: dark pad, faint cyan grid, hazard-striped curb, barriers along the two far edges */
-  s+=tp(0,300,0,300,0,'#15112c')+tp(8,292,8,292,0,'#1b1636');
-  for(let k=1;k<6;k++)s+=ln(tz(k*50,8),tz(k*50,292),C,.7,' opacity=".13"')+ln(tz(8,k*50),tz(292,k*50),C,.7,' opacity=".13"');
-  s+=`<polygon points="${pt([tz(0,0),tz(300,0),tz(300,300),tz(0,300)])}" fill="none" stroke="${Y}" stroke-width="3" stroke-dasharray="9 7"/>`;
+  const sq=([x,y],n,c,cls,dl=0)=>`<rect class="${cls}" x="${f1(x-n/2)}" y="${f1(y-n/2)}" width="${n}" height="${n}" fill="${c}" style="animation-delay:${dl}s"/>`;
+  const C='#00e5ff',M='#ff2bd6',Y='#fcee0a',Yd='#b8a300',O='#ff8a1f',ST='#2a2450',OL='#0e0c1e';
+  /* windows: every lit one is in the pixel art; a few get a dark cover in the overlay that blinks, so lights go on and off */
+  const lit=(cols,rows,c)=>{let o='',f='';for(let k=0;k<rows;k++)for(let j=0;j<cols;j++){const x=j*12+2,y=k*FH+5;if(rnd()<.34){o+=`<rect x="${x}" y="${y}" width="8" height="12" fill="${rnd()<.55?c:'#ffd27a'}"/>`;if(rnd()<.35)f+=`<rect class="wo" x="${x}" y="${y}" width="8" height="12" fill="#0f0a24" style="animation-delay:${(-rnd()*8).toFixed(2)}s;animation-duration:${(5+rnd()*7).toFixed(1)}s"/>`}}return[o,f]};
+  let s=`<svg xmlns="http://www.w3.org/2000/svg" width="${vt.w}" height="${vt.h}"><defs><pattern id="${id}g" width="12" height="${FH}" patternUnits="userSpaceOnUse"><rect width="12" height="${FH}" fill="#140e30"/><rect x="2" y="5" width="8" height="12" fill="#24507a"/><rect y="${FH-3}" width="12" height="3" fill="#07051a"/></pattern></defs>`,an='';
+  /* the lot: dark pad, cyan grid, hazard-striped curb, barriers along the two far edges */
+  s+=tp(0,300,0,300,-4,'#100d24')+tp(0,300,0,300,0,'#1d1838');
+  for(let k=1;k<6;k++)s+=ln(tz(k*50,8),tz(k*50,292),'#243a5a',1.5)+ln(tz(8,k*50),tz(292,k*50),'#243a5a',1.5);
+  for(let k=0;k<4;k++){const E=[[tz(0,0),tz(300,0)],[tz(300,0),tz(300,300)],[tz(300,300),tz(0,300)],[tz(0,300),tz(0,0)]][k];s+=ln(E[0],E[1],'#14120a',4)+ln(E[0],E[1],Y,4,' stroke-dasharray="9 7"')}
   for(let u=96;u<288;u+=32)s+=box(u,u+26,2,7,0,9,'#3a3466',Y,Yd);
   for(let v=12;v<288;v+=32)s+=box(292,298,v,v+26,0,9,'#3a3466',Y,Yd);
   /* site office (back left): a cabin with a lit window strip and an amber beacon */
-  s+=box(18,80,16,54,0,26,'#241c4e','#1b1440','#120c2c')+`<g transform="${mV(18,54,22)}"><rect x="6" y="3" width="50" height="8" fill="${C}" opacity=".75"/></g><g transform="${mU(18,16,22)}"><rect x="5" y="4" width="26" height="6" fill="${M}" opacity=".8"/></g>`
-    +ln(tz(70,30,26),tz(70,30,44),'#8a90c0',1.2)+`<circle class="bk2" cx="${f1(tz(40,30,30)[0])}" cy="${f1(tz(40,30,30)[1])}" r="3.2" fill="#ffb000"/>`;
-  /* crane mast, behind the tower */
+  s+=box(18,80,16,54,0,26,'#2c2460','#1f1848','#151034')+`<g transform="${mV(18,54,22)}"><rect x="6" y="3" width="50" height="8" fill="${C}"/></g><g transform="${mU(18,16,22)}"><rect x="5" y="4" width="26" height="6" fill="${M}"/></g>`
+    +ln(tz(70,30,26),tz(70,30,44),'#8a90c0',2)+box(37,43,27,33,26,30,'#5a4a20','#3a3010','#2a2208');
+  an+=sq(tz(40,30,32),4,'#ffb000','bk2');
+  /* crane mast, behind the tower: a yellow lattice */
   s+=fV(280,290,74,0,zm,Y)+fU(280,64,74,0,zm,Yd);
-  for(let z=0;z<zm-6;z+=12)s+=ln(tz(280,74,z),tz(290,74,z+12),'#4a3f00',1)+ln(tz(280,64,z),tz(280,74,z+12),'#3a3200',1);
+  for(let z=0;z<zm-6;z+=12)s+=ln(tz(280,74,z),tz(290,74,z+12),'#5a4a00',1.5)+ln(tz(280,64,z),tz(280,74,z+12),'#4a3c00',1.5);
   /* the tower: finished glass floors */
-  s+=tp(u0-8,u1+10,v0-4,v1+12,0,'#05040c',' opacity=".55"');
-  s+=fV(u0,u1,v1,0,zf,'#120c2c')+`<g transform="${mV(u0,v1,zf)}"><rect width="${W}" height="${zf}" fill="url(#${id}g)"/>${lit(9,fin,C)}</g>`;
-  s+=fU(u0,v0,v1,0,zf,'#0c0820')+`<g transform="${mU(u0,v0,zf)}"><rect width="${D}" height="${zf}" fill="url(#${id}g)" opacity=".75"/>${lit(9,fin,M)}<rect x="${D-14}" width="6" height="${zf}" fill="${dc}" opacity=".85"/></g>`;
-  s+=tp(u0,u1,v0,v1,zf,'#221a4a')+ln(tz(u0,v1,0),tz(u0,v1,zf),C,2.5)+ln(tz(u0,v0,0),tz(u0,v0,zf),M,2)+ln(tz(u1,v1,0),tz(u1,v1,zf),M,2);
-  {const h=Math.min(26,zf-6);s+=`<g transform="${mV(u0+12,v1,zf-3)}"><rect width="${W-24}" height="${h}" fill="#1a0626" stroke="${dc}" stroke-width="2"/><text x="${(W-24)/2}" y="${(h*.8).toFixed(1)}" text-anchor="middle" font-family="Chakra Petch,Inter,sans-serif" font-weight="700" font-size="${(h*.78).toFixed(1)}" fill="${Y}">${Math.round(prog)}%</text></g>`}
+  s+=tp(u0-8,u1+10,v0-4,v1+12,0,'#0b0920');
+  const [lv,ov]=lit(9,fin,C),[lu,ou]=lit(9,fin,M);
+  s+=fV(u0,u1,v1,0,zf,'#140e30')+`<g transform="${mV(u0,v1,zf)}"><rect width="${W}" height="${zf}" fill="url(#${id}g)"/>${lv}</g>`;
+  s+=fU(u0,v0,v1,0,zf,'#0e0a24')+`<g transform="${mU(u0,v0,zf)}"><rect width="${D}" height="${zf}" fill="url(#${id}g)" opacity=".8"/>${lu}<rect x="${D-14}" width="6" height="${zf}" fill="${dc}"/></g>`;
+  an+=`<g transform="${mV(u0,v1,zf)}">${ov}</g><g transform="${mU(u0,v0,zf)}">${ou}</g>`;
+  s+=tp(u0,u1,v0,v1,zf,'#2a2156')+ln(tz(u0,v1,0),tz(u0,v1,zf),C,3)+ln(tz(u0,v0,0),tz(u0,v0,zf),M,2.5)+ln(tz(u1,v1,0),tz(u1,v1,zf),M,2.5);
+  /* the progress sign in pixel digits */
+  {const h=Math.min(26,zf-6),bw=W-24,txt=Math.round(prog)+'%',px=Math.max(2.5,Math.floor((h-6)/5*2)/2),tw=txt.length*4*px-px,x0=(bw-tw)/2,y0=(h-5*px)/2;let dg='';
+    [...txt].forEach((ch,i)=>[...(PX3[ch]||'')].forEach((b,j)=>{if(b==='1')dg+=`<rect x="${f1(x0+i*4*px+(j%3)*px)}" y="${f1(y0+(j/3|0)*px)}" width="${px}" height="${px}" fill="${Y}"/>`}));
+    s+=`<g transform="${mV(u0+12,v1,zf-3)}"><rect width="${bw}" height="${h}" fill="#1a0626"/><rect x="1" y="1" width="${bw-2}" height="${h-2}" fill="none" stroke="${dc}" stroke-width="2.5"/>${dg}</g>`}
   /* the bare steel frame on top, still going up */
-  if(tot>fin){const cols=[[u1,v0],[u0+W/2,v0],[u1,v0+D/2]],front=[[u0,v0],[u1,v1],[u0+W/2,v1],[u0,v0+D/2],[u0,v1]],col=([u,v])=>ln(tz(u,v,zf),tz(u,v,zt),'#4a4378',4)+ln(tz(u,v,zf),tz(u,v,zt),O,1.2);
+  if(tot>fin){const cols=[[u1,v0],[u0+W/2,v0],[u1,v0+D/2]],front=[[u0,v0],[u1,v1],[u0+W/2,v1],[u0,v0+D/2],[u0,v1]],col=([u,v])=>ln(tz(u,v,zf),tz(u,v,zt),'#4a4378',4.5)+ln(tz(u,v,zf),tz(u,v,zt),O,1.6);
     s+=cols.map(col).join('');
-    for(let k=fin+1;k<=tot;k++){const z=k*FH,last=k===tot;
-      s+=tp(u0,u1,v0,v1,z,last?'none':ST,` stroke="${O}" stroke-width="1.6"${last?'':' fill-opacity=".6"'}`);}
+    for(let k=fin+1;k<=tot;k++){const z=k*FH,last=k===tot;s+=tp(u0,u1,v0,v1,z,last?'none':'#2a2450',` stroke="${O}" stroke-width="2.2"`)}
     s+=front.map(col).join('');
-    for(let k=fin;k<tot;k++){const z0=k*FH,z1=z0+FH;s+=ln(tz(u0,v1,z0),tz(u0+W/2,v1,z1),O,1,' opacity=".6"')+ln(tz(u0+W/2,v1,z0),tz(u1,v1,z1),O,1,' opacity=".6"')+ln(tz(u0,v0,z1),tz(u0,v0+D/2,z0),O,1,' opacity=".6"')+ln(tz(u0,v0+D/2,z1),tz(u0,v1,z0),O,1,' opacity=".6"')}
+    for(let k=fin;k<tot;k++){const z0=k*FH,z1=z0+FH;s+=ln(tz(u0,v1,z0),tz(u0+W/2,v1,z1),O,1.5)+ln(tz(u0+W/2,v1,z0),tz(u1,v1,z1),O,1.5)+ln(tz(u0,v0,z1),tz(u0,v0+D/2,z0),O,1.5)+ln(tz(u0,v0+D/2,z1),tz(u0,v1,z0),O,1.5)}
     /* welding sparks on the newest floor */
     [tz(u0+W*.7,v1,zt),tz(u0,v0+D*.35,zt-FH)].forEach(([x,y],j)=>{
-      s+=`<circle class="wweld" cx="${f1(x)}" cy="${f1(y)}" r="7" fill="#ffd27a" opacity=".45" style="animation-delay:${j*-.23}s"/><circle cx="${f1(x)}" cy="${f1(y)}" r="2.2" fill="#fff"/>`;
-      for(let i=0;i<6;i++)s+=`<circle class="spk" cx="${f1(x)}" cy="${f1(y)}" r="1.3" fill="${i%2?Y:O}" style="--dx:${((rnd()-.5)*22).toFixed(1)}px;animation-delay:${(-rnd()*1.2).toFixed(2)}s"/>`})}
+      an+=sq([x,y],9,'#ffd27a','wweld',j*-.23)+sq([x,y],3,'#fff','');
+      for(let i=0;i<6;i++)an+=`<rect class="spk" x="${f1(x-1.5)}" y="${f1(y-1.5)}" width="3" height="3" fill="${i%2?Y:O}" style="--dx:${((rnd()-.5)*22).toFixed(1)}px;animation-delay:${(-rnd()*1.2).toFixed(2)}s"/>`})}
   /* beams waiting in the yard, traffic cones */
-  for(let k=0;k<3;k++)s+=box(118,152,60,84,k*5,k*5+4,'#d06a1c',O,'#9c4a0c');
-  [[134,156],[150,152],[128,120]].forEach(([u,v])=>{const [x,y]=tz(u,v);s+=`<path d="M${f1(x-4)} ${f1(y)}L${f1(x)} ${f1(y-11)}L${f1(x+4)} ${f1(y)}Z" fill="${O}"/><rect x="${f1(x-2.4)}" y="${f1(y-6)}" width="4.8" height="1.8" fill="#fff"/>`});
+  for(let k=0;k<3;k++)s+=box(118,152,60,84,k*5,k*5+4,'#e07a2a',O,'#9c4a0c');
+  [[134,156],[150,152],[128,120]].forEach(([u,v])=>{const [x,y]=tz(u,v);s+=`<path d="M${f1(x-5)} ${f1(y)}L${f1(x)} ${f1(y-12)}L${f1(x+5)} ${f1(y)}Z" fill="${O}"/><rect x="${f1(x-3)}" y="${f1(y-7)}" width="6" height="2.5" fill="#fff"/>`});
   /* hoist: two rails up the left face, a cage riding up and down */
-  s+=ln(tz(u0-4,v0+16,0),tz(u0-4,v0+16,zt+12),'#8a90c0',1.4)+ln(tz(u0-4,v0+32,0),tz(u0-4,v0+32,zt+12),'#8a90c0',1.4);
-  {const hy=-.866*(zt-8);s+=`<g>${AN?`<animateTransform attributeName="transform" type="translate" values="0 0;0 ${f1(hy)};0 ${f1(hy)};0 0;0 0" keyTimes="0;.42;.55;.95;1" dur="11s" repeatCount="indefinite"/>`:''}${box(u0-16,u0-5,v0+14,v0+34,0,16,'#ffd000',Y,'#c9a400')}<g transform="${mU(u0-16,v0+14,13)}"><rect x="4" y="2" width="12" height="5" fill="${C}"/></g></g>`}
-  /* crane top: jib over the tower, counter-jib and weight, apex with pendants, cab, warning lights */
-  s+=box(272,282,74,88,zm-15,zm,'#2a2258','#1b1440','#141036')+`<g transform="${mV(272,88,zm-3)}"><rect x="2" y="2" width="6" height="7" fill="${C}" opacity=".85"/></g>`;
-  s+=box(290,336,66,72,zm,zm+5,Y,Y,Yd)+box(318,336,62,76,zm-14,zm+3,'#55556a','#3d3d50','#2e2e3e');
+  s+=ln(tz(u0-4,v0+16,0),tz(u0-4,v0+16,zt+12),'#8a90c0',2)+ln(tz(u0-4,v0+32,0),tz(u0-4,v0+32,zt+12),'#8a90c0',2);
+  {const hy=-.866*(zt-8);an+=`<g stroke="${OL}" stroke-width="1.5" stroke-linejoin="round">${AN?`<animateTransform attributeName="transform" type="translate" calcMode="discrete" values="${Array.from({length:24},(_,i)=>{const t=i/23,f=t<.42?t/.42:t<.55?1:t<.95?1-(t-.55)/.4:0;return '0 '+Math.round(hy*f/WIPSC)*WIPSC}).join(';')}" dur="11s" repeatCount="indefinite"/>`:''}${box(u0-16,u0-5,v0+14,v0+34,0,16,'#ffd000',Y,'#c9a400')}</g>`}
+  /* crane top: jib over the tower, counter-jib and weight, apex with pendants, cab */
+  s+=box(272,282,74,88,zm-15,zm,'#2a2258','#1b1440','#141036')+`<g transform="${mV(272,88,zm-3)}"><rect x="2" y="2" width="6" height="7" fill="${C}"/></g>`;
+  s+=box(290,336,66,72,zm,zm+5,Y,Y,Yd)+box(318,336,62,76,zm-14,zm+3,'#5e5e74','#45455a','#33334a');
   s+=box(282,288,66,72,zm+5,zm+34,Y,Y,Yd);
-  s+=box(100,290,66,72,zm,zm+5,Y,Y,Yd)+ln(tz(108,69,zm+13),tz(282,69,zm+13),Y,1.4);
-  for(let u=108;u<282;u+=14)s+=ln(tz(u,69,zm+5),tz(u+7,69,zm+13),Y,1)+ln(tz(u+7,69,zm+13),tz(u+14,69,zm+5),Y,1);
-  s+=ln(tz(285,69,zm+34),tz(108,69,zm+13),'#cfd6ff',1)+ln(tz(285,69,zm+34),tz(334,69,zm+5),'#cfd6ff',1);
+  s+=box(100,290,66,72,zm,zm+5,Y,Y,Yd)+ln(tz(108,69,zm+13),tz(282,69,zm+13),Y,2);
+  for(let u=108;u<282;u+=14)s+=ln(tz(u,69,zm+5),tz(u+7,69,zm+13),Y,1.5)+ln(tz(u+7,69,zm+13),tz(u+14,69,zm+5),Y,1.5);
+  s+=ln(tz(285,69,zm+34),tz(108,69,zm+13),'#b8c0f0',1.5)+ln(tz(285,69,zm+34),tz(334,69,zm+5),'#b8c0f0',1.5);
+  /* trolley, cable and a beam: carried from the yard stack up to the top floor, dropped off, back for the next */
   {const A=tz(135,69,zm),B=tz(214,69,zm),Lg=.866*(zm-16),Lu=18,Lt=.866*(zm-zt-8),kt='0;.12;.42;.56;.68;.8;.92;1',ys=[Lg,Lu,Lu,Lt,Lt,Lu,Lu,Lg];
-    const an=(a,v,x='')=>AN?`<animate attributeName="${a}" dur="14s" repeatCount="indefinite" keyTimes="${kt}" values="${v}"${x}/>`:'';
-    s+=`<g${AN?'':` transform="translate(${f1(A[0])},${f1(A[1])})"`}>${AN?`<animateMotion dur="14s" repeatCount="indefinite" calcMode="linear" keyPoints="0;0;1;1;1;1;0;0" keyTimes="${kt}" path="M${f1(A[0])},${f1(A[1])}L${f1(B[0])},${f1(B[1])}"/>`:''}`
-      +`<rect x="-7" y="-1" width="14" height="5" fill="#2b2650" stroke="${Y}" stroke-width="1"/><line x1="0" y1="4" x2="0" y2="${f1(Lg)}" stroke="#cfd6ff" stroke-width="1">${an('y2',ys.map(f1).join(';'))}</line>`
-      +`<g transform="translate(0,${f1(Lg)})">${AN?`<animateTransform attributeName="transform" type="translate" dur="14s" repeatCount="indefinite" keyTimes="${kt}" values="${ys.map(y=>'0 '+f1(y)).join(';')}"/>`:''}<rect x="-2" y="0" width="4" height="4" fill="${O}"/>`
-      +`<g>${an('opacity','1;1;1;1;0;0;0;1',' calcMode="discrete"')}${ln(rel(0,0,0).map((e,i)=>e+(i?4:0)),rel(-12,0,-3).map((e,i)=>e+(i?4:0)),'#cfd6ff',.8)}${ln([0,4],rel(12,0,-3).map((e,i)=>e+(i?4:0)),'#cfd6ff',.8)}<g transform="translate(0,${f1(4+.866*8)})">${rbox(-16,16,-3,3,-6,0,'#ff9a3a',O,'#9c4a0c')}</g></g></g></g>`}
-  [tz(285,69,zm+34),tz(100,69,zm+6),tz(336,69,zm+5)].forEach(([x,y],j)=>s+=`<circle class="bk" cx="${f1(x)}" cy="${f1(y)}" r="3.4" fill="#ff3b5c" style="animation-delay:${j*-.5}s"/>`);
+    const am=(a,v,x='')=>AN?`<animate attributeName="${a}" dur="14s" repeatCount="indefinite" keyTimes="${kt}" values="${v}"${x}/>`:'';
+    an+=`<g${AN?'':` transform="translate(${f1(A[0])},${f1(A[1])})"`}>${AN?`<animateMotion dur="14s" repeatCount="indefinite" calcMode="linear" keyPoints="0;0;1;1;1;1;0;0" keyTimes="${kt}" path="M${f1(A[0])},${f1(A[1])}L${f1(B[0])},${f1(B[1])}"/>`:''}`
+      +`<rect x="-7" y="-1" width="14" height="6" fill="#2b2650" stroke="${OL}" stroke-width="1.5"/><rect x="-5" y="0" width="10" height="2" fill="${Y}"/><line x1="0" y1="5" x2="0" y2="${f1(Lg)}" stroke="#b8c0f0" stroke-width="1.5">${am('y2',ys.map(f1).join(';'))}</line>`
+      +`<g transform="translate(0,${f1(Lg)})">${AN?`<animateTransform attributeName="transform" type="translate" dur="14s" repeatCount="indefinite" keyTimes="${kt}" values="${ys.map(y=>'0 '+f1(y)).join(';')}"/>`:''}<rect x="-3" y="0" width="6" height="5" fill="${O}" stroke="${OL}" stroke-width="1"/>`
+      +`<g>${am('opacity','1;1;1;1;0;0;0;1',' calcMode="discrete"')}${ln([0,5],rel(-12,0,-3).map((e,i)=>e+(i?5:0)),'#b8c0f0',1.2)}${ln([0,5],rel(12,0,-3).map((e,i)=>e+(i?5:0)),'#b8c0f0',1.2)}<g transform="translate(0,${f1(5+.866*8)})" stroke="${OL}" stroke-width="1.5" stroke-linejoin="round">${rbox(-16,16,-3,3,-6,0,'#ffa040',O,'#9c4a0c')}</g></g></g></g>`}
+  [tz(285,69,zm+36),tz(100,69,zm+8),tz(336,69,zm+7)].forEach((q,j)=>an+=sq(q,5,'#ff3b5c','bk',j*-.5));
   /* floodlights at the front corners washing the tower */
   [[292,292,[tz(u0+30,v1,Math.max(12,zf*.9)),tz(u1-4,v1,4)]],[8,168,[tz(u0,v0+8,Math.max(12,zf*.85)),tz(u0,v1-6,4)]]].forEach(([u,v,to],j)=>{const h=tz(u,v,64);
-    s+=`<polygon class="wfl" points="${pt([h,...to])}" fill="#fff3c2" opacity=".1" style="animation-delay:${-j*1.4}s"/>`+ln(tz(u,v,0),h,'#5a5480',2.2)+`<rect x="${f1(h[0]-5)}" y="${f1(h[1]-3)}" width="10" height="5" fill="#fff3c2"/>`});
-  return s+'</svg>';
+    an=`<polygon class="wfl" points="${pt([h,...to])}" fill="#fff3c2" opacity=".1" style="animation-delay:${-j*1.4}s"/>`+an;
+    s+=ln(tz(u,v,0),h,'#5a5480',3)+`<rect x="${f1(h[0]-6)}" y="${f1(h[1]-4)}" width="12" height="6" fill="#fff3c2"/>`});
+  const [k,url]=wipPixel(s+'</svg>',vt.w,vt.h);
+  return `<img class="wipimg" data-wip="${k}" src="${url||'data:,'}" alt="" draggable="false" style="width:${vt.w}px;height:${vt.h}px${url?'':';visibility:hidden'}"><svg class="wip" aria-hidden="true" shape-rendering="crispEdges" style="width:${vt.w}px;height:${vt.h}px">${an}</svg>`;
 }
 const DESK={ox:12.0,oy:52.51,w:74,h:73}; // one desk image, laptop facing away from us; drawn per desk slot so people can sit behind it
 const DESKSLOTS=Array.from({length:10},(_,k)=>({dx:18+(k%5)*64,dy:k<5?34:104}));
