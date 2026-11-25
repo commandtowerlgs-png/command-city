@@ -1071,7 +1071,7 @@ body[data-tab="map"][data-panels="on"] .drawerbtn{display:inline-flex}
 .panel .pclose{position:sticky;top:0;justify-self:end;margin-bottom:-50px;z-index:8;width:40px;height:40px;display:grid;place-items:center;border:2px solid #ffffff55;border-radius:12px;background:var(--danger,#e8483b);color:#fff;font:800 22px/1 var(--display);cursor:pointer;box-shadow:0 4px 12px #0006;padding:0}
 .panel .pclose:hover{filter:brightness(1.1)}
 .panel .ph .x,.panel .pf-x{display:none}
-.panel .ph{padding-right:48px}
+.panel .ph{padding-right:64px}   /* room for the sticky close button (40px + 12px margin) so the status pill never slides under it */
 
 /* ===== v28: grass background, room highlight, zzz, desks that appear, link buttons, close button position ===== */
 .map,body[data-tab="map"] .map{background-color:#7bcc55!important;background-image:linear-gradient(45deg,#0000000d 25%,transparent 25%,transparent 75%,#0000000d 75%),linear-gradient(45deg,#0000000d 25%,transparent 25%,transparent 75%,#0000000d 75%)!important;background-size:48px 48px!important;background-position:0 0,24px 24px!important}
