@@ -1537,6 +1537,11 @@ input:not([type=checkbox]):not([type=range]):focus,textarea:focus,select:focus{o
 .pf-dep em{font:700 12px/1.3 var(--body);font-style:normal;color:var(--mute);overflow-wrap:anywhere}
 /* BASES-CSS:BEGIN */
 .cbase{position:absolute;pointer-events:none}
+.skyd{position:absolute;overflow:visible;pointer-events:none;z-index:2}
+.cbase .wip{position:absolute;left:0;top:0;overflow:visible;pointer-events:none}
+.cbase .skglow{animation:skglow 3s ease-in-out infinite}@keyframes skglow{0%,100%{opacity:0}50%{opacity:.35}}
+.cbase .skbeam{transform-box:fill-box;transform-origin:50% 100%;animation:skbeam 7s ease-in-out infinite alternate}@keyframes skbeam{from{transform:rotate(-22deg)}to{transform:rotate(22deg)}}
+.cbase .skfw{animation:skfw 2.2s ease-out infinite}@keyframes skfw{0%{transform:translate(0,0);opacity:0}8%{opacity:1}70%{opacity:1}100%{transform:translate(var(--fx),var(--fy));opacity:0}}
 .cb-img{position:absolute;left:0;top:0;width:100%;height:100%;max-width:none;image-rendering:pixelated;pointer-events:none;user-select:none}
 .cb-flag{position:absolute;display:block;image-rendering:pixelated;background-repeat:no-repeat;pointer-events:none;animation:cranesw .9s steps(var(--n)) infinite}
 .cb-hit{position:absolute;left:0;top:0;width:100%;height:100%;padding:0;border:0;background:transparent;pointer-events:auto;cursor:pointer;touch-action:none}
@@ -3008,7 +3013,7 @@ const LAWN={"u":"url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA94AAAHvCAMAA
 const baseTier=p=>{const s=(p.deliverables||[]).length+Math.floor((p.members||[]).length/3);return s>=13?4:s>=9?3:s>=6?2:s>=3?1:0};   // bigger ventures, bigger bases: marker, gazebo, cottage, hall, keep
 function villageLayout(done,x0,y0){
   if(!done.length)return[];
-  const N=BASE.n,pitch=N+90,ok=p=>p.base&&Number.isFinite(p.base.x)&&Number.isFinite(p.base.y),placed=[];
+  const N=BASE.n,pitch=N+50,ok=p=>p.base&&Number.isFinite(p.base.x)&&Number.isFinite(p.base.y),placed=[];
   const ord=done.slice().sort((a,b)=>String(a.finished||'').localeCompare(String(b.finished||''))||String(a.id).localeCompare(String(b.id)));
   const hit=(x,y)=>placed.some(q=>Math.abs(q.bx-x)<N+10&&Math.abs(q.by-y)<N+10);
   ord.filter(ok).forEach(p=>placed.push({p,bx:p.base.x,by:p.base.y}));
@@ -3022,14 +3027,66 @@ function villageLayout(done,x0,y0){
   out.push({k:'vg',l,t,tw:Math.max(...pt.map(q=>q[0]))-l,th:Math.max(...pt.map(q=>q[1]))-t,x:X0,y:Y0,X1,Y1});
   return out;
 }
-function villageHTML(){return''}   // the 'vg' item is only a bounding box (see villageLayout)
+function villageHTML(it,left,top){   // the skyline district's paving: dark asphalt under the towers, roads in the gaps between the lots
+  const N=BASE.n,pitch=N+50,m=pitch-60,x0=it.x+m,y0=it.y+m,x1=it.X1-m,y1=it.Y1-m,P=(u,v)=>(((u+v)*K2-it.l)).toFixed(1)+','+(((v-u)*K2*.5-it.t)).toFixed(1);
+  const ln=(a,b,c,d,at)=>`<polyline points="${P(a,b)} ${P(c,d)}" ${at}/>`,dash='fill="none" stroke="#ff9d1a" stroke-width="1.5" stroke-dasharray="7 7"';
+  let r='';for(let u=x0+60+N+25;u<x1-30;u+=pitch)r+=ln(u,y0,u,y1,dash);for(let v=y0+60+N+25;v<y1-30;v+=pitch)r+=ln(x0,v,x1,v,dash);
+  return `<svg class="skyd" aria-hidden="true" style="left:${left}px;top:${top}px;width:${it.tw}px;height:${it.th}px"><polygon points="${P(x0,y0)} ${P(x1,y0)} ${P(x1,y1)} ${P(x0,y1)}" fill="#17142c" stroke="#00e5ff" stroke-opacity=".45" stroke-width="2"/>${r}</svg>`}   // the 'vg' item is only a bounding box (see villageLayout)
+/* SKYLINE DISTRICT: a finished venture is its skyscraper, completed: lit glass all the way up, a neon crown in the venture's colour,
+   a gold beacon if it finished on time. Bigger ventures (more tasks and people) earn taller towers. Same pixel pass as the
+   construction sites; the moving bits (beacon, crown glow, window lights, searchlights, opening fireworks) stay crisp on top. */
+const SKY=(()=>{const K=Math.SQRT1_2,N=150,ox=5,Hs=[100,140,185,235,290],Ws=[66,72,80,86,94];
+  return Hs.map((H,i)=>{const w=Ws[i],u0=75-w/2,u1=75+w/2,top=H+(i>=2?44:30)+30,oy=Math.ceil(.866*top+12),P=(u,v,z=0)=>[+(ox+(u+v)*K).toFixed(1),+(oy+(v-u)*K*.5-.866*z).toFixed(1)];
+    const pad=[P(0,0),P(N,0),P(N,N),P(0,N)];
+    return{i,H,u0,u1,ox,oy,w:222,h:Math.ceil(oy+N*K*.5+8),pad,hull:[P(0,0),P(u0,u0,H+20),P(u1,u0,top),P(u1,u1,H+20),P(N,N),P(0,N)],fx:0,fy:0}})})();
+BASE.tiers=SKY;
+function skyHTML(p,T){
+  const N=150,{H,u0,u1,i}=T,c=projColor(p.id),gold=onTime(p),P=(u,v,z=0)=>[T.ox+(u+v)*K2,T.oy+(v-u)*K2*.5-.866*z],AN=!matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let r=(hashStr('sky:'+p.id)%2147483646)+1;const rnd=()=>(r=(r*16807)%2147483647)/2147483647;
+  const f1=n=>(+n).toFixed(1),pt=a=>a.map(q=>f1(q[0])+','+f1(q[1])).join(' '),poly=(a,f,x='')=>`<polygon points="${pt(a)}" fill="${f}"${x}/>`;
+  const fV=(a,b,v,z0,z1,f)=>poly([P(a,v,z0),P(b,v,z0),P(b,v,z1),P(a,v,z1)],f),fU=(u,a,b,z0,z1,f)=>poly([P(u,a,z0),P(u,b,z0),P(u,b,z1),P(u,a,z1)],f);
+  const tp=(a,b,c,d,z,f,x)=>poly([P(a,c,z),P(b,c,z),P(b,d,z),P(a,d,z)],f,x),box=(a,b,c,d,z0,z1,cT,cV,cU)=>fV(a,b,d,z0,z1,cV)+fU(a,c,d,z0,z1,cU)+tp(a,b,c,d,z1,cT);
+  const ln=(p,q,col,w)=>`<line x1="${f1(p[0])}" y1="${f1(p[1])}" x2="${f1(q[0])}" y2="${f1(q[1])}" stroke="${col}" stroke-width="${w}"/>`;
+  const mV=(u,v,z)=>{const[x,y]=P(u,v,z);return `matrix(${K2},${-K2*.5},0,.866,${f1(x)},${f1(y)})`},mU=(u,v,z)=>{const[x,y]=P(u,v,z);return `matrix(${K2},${K2*.5},0,.866,${f1(x)},${f1(y)})`};
+  const sq=([x,y],n,col,cls,dl=0)=>`<rect class="${cls}" x="${f1(x-n/2)}" y="${f1(y-n/2)}" width="${n}" height="${n}" fill="${col}" style="animation-delay:${dl}s"/>`;
+  const FH=16,win=(len,z0,z1,tint)=>{let o='',f='';const cols=Math.floor((len-4)/10),rows=Math.floor((z1-z0)/FH);for(let k=0;k<rows;k++)for(let j=0;j<cols;j++){if(rnd()<.62){const x=4+j*10,y=k*FH+4,col=rnd()<.15?c:rnd()<.5?tint:'#ffd27a';o+=`<rect x="${x}" y="${y}" width="6" height="9" fill="${col}"/>`;if(rnd()<.18)f+=`<rect class="wo" x="${x}" y="${y}" width="6" height="9" fill="#120c2c" style="animation-delay:${(-rnd()*9).toFixed(2)}s;animation-duration:${(6+rnd()*8).toFixed(1)}s"/>`}}return[o,f]};
+  let s=`<svg xmlns="http://www.w3.org/2000/svg" width="${T.w}" height="${T.h}">`,an='';
+  /* plaza: dark paving, the venture's colour along the front kerbs, planters */
+  s+=tp(0,N,0,N,-3,'#100d24')+tp(0,N,0,N,0,'#1d1838');
+  s+=ln(P(0,N),P(N,N),c,3)+ln(P(0,0),P(0,N),c,3);
+  [[14,128],[128,128],[14,14]].forEach(([u,v])=>s+=box(u,u+10,v,v+10,0,6,'#2f8a5a','#1f5a3c','#174630'));
+  /* the tower: one shaft, or a podium shaft with a setback crown section on the bigger ones */
+  const sec=i>=2?[[u0,u1,0,Math.round(H*.62)],[u0+9,u1-9,Math.round(H*.62),H]]:[[u0,u1,0,H]];
+  s+=tp(u0-6,u1+8,u0-4,u1+10,0,'#0b0920');
+  sec.forEach(([a,b,z0,z1],k)=>{const L=b-a,[wv,ov]=win(L,z0,z1,'#7df3ff'),[wu,ou]=win(L,z0,z1,'#ff8ae8');
+    s+=fV(a,b,b,z0,z1,'#171035')+`<g transform="${mV(a,b,z1)}">${wv}</g>`+fU(a,a,b,z0,z1,'#0f0a26')+`<g transform="${mU(a,a,z1)}">${wu}</g>`+tp(a,b,a,b,z1,'#2a2156');
+    s+=ln(P(a,b,z0),P(a,b,z1),c,3)+ln(P(a,a,z0),P(a,a,z1),'#ff2bd6',2)+ln(P(b,b,z0),P(b,b,z1),'#00e5ff',2)+ln(P(a,b,z1),P(b,b,z1),c,2.5)+ln(P(a,a,z1),P(a,b,z1),c,2.5);
+    an+=`<g transform="${mV(a,b,z1)}">${ov}</g><g transform="${mU(a,a,z1)}">${ou}</g>`});
+  /* lobby: a glowing entrance on the front */
+  s+=`<g transform="${mV(u0+L0(u0,u1),u1,14)}"><rect width="22" height="14" fill="#ffd84a"/><rect x="10" width="2" height="14" fill="#7a5a10"/></g>`;
+  function L0(a,b){return (b-a)/2-11}
+  /* crown in the venture's colour: a stepped cap, then a spire and antenna */
+  const [ca,cb]=sec[sec.length-1],cm=(ca+cb)/2,cw=(cb-ca)/2,ch=i>=2?44:30;
+  s+=box(cm-cw*.7,cm+cw*.7,cm-cw*.7,cm+cw*.7,H,H+ch*.45,c,c,c);
+  s+=poly([P(cm-cw*.45,cm+cw*.45,H+ch*.45),P(cm+cw*.45,cm+cw*.45,H+ch*.45),P(cm,cm,H+ch)],'#ffffff')+poly([P(cm-cw*.45,cm-cw*.45,H+ch*.45),P(cm-cw*.45,cm+cw*.45,H+ch*.45),P(cm,cm,H+ch)],c);
+  s+=ln(P(cm,cm,H+ch),P(cm,cm,H+ch+28),'#b8c0f0',2);
+  an+=`<polygon class="skglow" points="${pt([P(cm-cw*.7,cm+cw*.7,H),P(cm+cw*.7,cm+cw*.7,H),P(cm+cw*.7,cm+cw*.7,H+ch*.45),P(cm-cw*.7,cm+cw*.7,H+ch*.45)])}" fill="#ffffff"/>`;
+  an+=sq(P(cm,cm,H+ch+30),5,gold?'#ffd84a':'#ff3b5c','bk');
+  /* searchlights sweeping the sky from the biggest towers */
+  if(i>=3)[[-1,0],[1,-1.7]].forEach(([d,dl])=>{const [x,y]=P(cm,cm,H+ch*.45);an=`<polygon class="skbeam" points="${f1(x)},${f1(y)} ${f1(x+d*30-9)},${f1(y-150)} ${f1(x+d*30+9)},${f1(y-150)}" fill="${c}" opacity=".16" style="animation-delay:${dl}s"/>`+an});
+  /* finished in the last day: fireworks over the new tower */
+  const ago=p.finished?Math.floor((Date.now()-new Date(p.finished+'T00:00'))/864e5):99;
+  if(ago<=1&&AN){const [x,y]=P(cm,cm,H+ch+40);[[0,-18,0],[-30,4,-.8],[28,-2,-1.5]].forEach(([dx,dy,dl],k)=>{const col=['#ffd84a',c,'#7df3ff'][k];
+    for(let j=0;j<10;j++){const t=j/10*Math.PI*2;an+=`<rect class="skfw" x="${f1(x+dx-1.5)}" y="${f1(y+dy-1.5)}" width="3" height="3" fill="${col}" style="--fx:${f1(Math.cos(t)*24)}px;--fy:${f1(Math.sin(t)*24)}px;animation-delay:${dl}s"/>`}})}
+  const [k,url]=wipPixel(s+'</svg>',T.w,T.h);
+  return `<img class="wipimg cb-img" data-wip="${k}" src="${url||'data:,'}" alt="" draggable="false" style="${url?'':'visibility:hidden'}"><svg class="wip" aria-hidden="true" shape-rendering="crispEdges" style="width:${T.w}px;height:${T.h}px">${an}</svg>`;
+}
 function baseHTML(it,left,top){
-  const B=BASE.tiers[it.tier],F=BASE.flag,p=it.p,ci=Math.max(0,PJPAL.indexOf(projColor(p.id))),nm=esc(p.name),fin=p.finished?fmtD(p.finished):'',hull=B.hull.map(q=>q[0]+'px '+q[1]+'px').join(',');
+  const B=BASE.tiers[it.tier],p=it.p,nm=esc(p.name),fin=p.finished?fmtD(p.finished):'',hull=B.hull.map(q=>q[0]+'px '+q[1]+'px').join(',');
   return `<div class="cbase${ui.unlocked?' mv':''}" data-id="${p.id}" data-tier="${it.tier}" data-bx="${it.bx}" data-by="${it.by}" style="left:${left}px;top:${top}px;width:${B.w}px;height:${B.h}px;z-index:${Math.round(top+B.oy)}">`
-   +`<img class="cb-img" src="${B.s}" alt="" draggable="false">`
-   +`<i class="cb-flag" style="left:${B.fx}px;top:${B.fy}px;width:${F.w}px;height:${F.h}px;background-image:url(${F.s});background-size:${F.w*F.n}px ${F.h*F.rows}px;background-position:0 ${-ci*F.h}px;--n:${F.n};--cw:${F.w}px"></i>`
+   +skyHTML(p,B)
    +`<button type="button" class="cb-hit" style="clip-path:polygon(${hull})" aria-label="${nm}, completed venture. ${ui.unlocked?'Drag to move it, press to open it.':'Press to open it.'}" title="${nm}${fin?' · completed '+fin:''}${ui.unlocked?' · drag to move':''}"></button>`
-   +`<span class="cb-lbl" style="left:${B.pad[3][0]-70}px;top:${B.pad[3][1]+2}px"><b>${nm}</b>${fin?`<small>Completed ${fin}</small>`:''}</span></div>`;
+   +`<span class="cb-lbl" style="left:${B.pad[3][0]-70}px;top:${B.pad[3][1]+2}px"><b>${nm}</b>${fin?`<small>Completed ${fin}${onTime(p)?' · on time':''}</small>`:''}</span></div>`;
 }
 (()=>{
   let dg=null;const sc=()=>+getComputedStyle(floors).getPropertyValue('--s')||1;
