@@ -1393,6 +1393,7 @@ input:not([type=checkbox]):not([type=range]):focus,textarea:focus,select:focus{o
 .rw.cardwrap:not(.hl) .lbl.sign.quest{animation:pillbob2 2s ease-in-out infinite;animation-delay:calc(var(--bd,0) * -1s)}
 .rw.cardwrap:not(.hl) .lbl.sign .tot,.rw.cardwrap:not(.hl) .lbl.sign .cnt,.rw.cardwrap:not(.hl) .lbl.sign .more{display:none!important}
 .rw.cardwrap:not(.hl) .lbl.sign.quest h2{box-sizing:border-box;width:116px;height:31px;display:block;padding:0 12px;border-radius:99px;border:0;background:var(--dc,#f0b429);color:var(--pt,#1b0f00);text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:800 12px/31px var(--body);letter-spacing:.02em;box-shadow:0 3px 0 color-mix(in srgb,var(--dc,#f0b429) 62%,#000),0 8px 14px #0004}
+.rw.cardwrap:not(.hl) .lbl.sign.quest.wip h2{width:auto;min-width:116px;max-width:none;overflow:visible;text-overflow:clip}   /* venture names show in full */
 @keyframes pillbob2{0%,100%{translate:0 0}50%{translate:0 -9px}}
 @media (prefers-reduced-motion:reduce){.rw.cardwrap:not(.hl) .lbl.sign{animation:none!important}}
 .pa-lbl{left:221px;top:-266px;transform:translateX(-50%);animation:pillbob 2s ease-in-out infinite}
