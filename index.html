@@ -2104,9 +2104,10 @@ function seedCity(){
   const w=setInterval(()=>{if(ui.sb){loadAcct();clearInterval(w)}},1500);setTimeout(()=>clearInterval(w),120000);
 })();
 
-/* full screen: the button shows "exit" while the whole page fills the screen (Esc also leaves); hidden where the browser can't do it */
+/* full screen: the button shows "exit" while the whole page fills the screen (holding Esc also leaves); hidden where the browser can't do it */
 (function(){const d=document,b=()=>d.querySelector('.mapctl [data-act="fullscreen"]');
-  const sync=()=>{const on=!!(d.fullscreenElement||d.webkitFullscreenElement),x=b();if(!x)return;x.setAttribute('aria-pressed',String(on));x.setAttribute('aria-label',on?'Exit full screen':'Full screen');x.title=on?'Exit full screen (Esc)':'Full screen (hides the browser tabs and address bar)';fit()};
+  const sync=()=>{const on=!!(d.fullscreenElement||d.webkitFullscreenElement),x=b(),kb=navigator.keyboard;try{on?kb?.lock?.(['Escape'])?.catch?.(()=>{}):kb?.unlock?.()}catch{}   /* full screen keeps Escape for the page (back to the overview); holding Esc still leaves full screen */
+  if(!x)return;x.setAttribute('aria-pressed',String(on));x.setAttribute('aria-label',on?'Exit full screen':'Full screen');x.title=on?'Exit full screen (or hold Esc)':'Full screen (hides the browser tabs and address bar)';fit()};
   d.addEventListener('fullscreenchange',sync);d.addEventListener('webkitfullscreenchange',sync);
   if(!(d.fullscreenEnabled||d.webkitFullscreenEnabled)){const x=b();if(x)x.hidden=true}})();
 
